@@ -393,6 +393,39 @@ body:not(.is-home) { overflow: hidden; }
     opacity: 0.18;
   }
 }
+/* Atem: the soft surface breathes, while the invitation stays still. */
+.needs-profile .talk-button {
+  isolation: isolate;
+  background: transparent;
+  box-shadow: none;
+  gap: 22px;
+}
+.needs-profile .talk-button::before {
+  inset: 0;
+  z-index: -1;
+  border: 0;
+  border-radius: 49% 51% 46% 54% / 47% 46% 54% 53%;
+  background: var(--talk-brown);
+  box-shadow: 0 16px 30px #3a302724;
+  opacity: 1;
+  animation: none;
+  transition: background-color 160ms var(--ease);
+}
+.is-home.needs-profile .talk-button::before {
+  animation: invitation-breathe 6s cubic-bezier(.45, 0, .55, 1) infinite;
+}
+.motion-paused.needs-profile .talk-button::before { animation-play-state: paused; }
+.talk-intro-label { max-width: 10ch; text-wrap: balance; }
+.needs-profile .talk-button:active { background: transparent; box-shadow: none; }
+.needs-profile .talk-button:active::before { background: #60472e; }
+@media (hover: hover) and (pointer: fine) {
+  .needs-profile .talk-button:hover { background: transparent; box-shadow: none; }
+  .needs-profile .talk-button:hover::before { background: var(--talk-brown-hover); }
+}
+@keyframes invitation-breathe {
+  0%, 100% { transform: scale(1.02, .99); }
+  50% { transform: scale(1.05, 1.015); }
+}
 .talk-button .icon {
   width: 33px;
   height: 33px;

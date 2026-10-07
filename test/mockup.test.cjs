@@ -64,8 +64,12 @@ test("onboarding centres fitting sections and gives oversized sections top breat
 
 test("first visit asks for information before showing the conversation action", () => {
   const p = createPage();
-  assert.equal(p.$("home-title").textContent, "Hallo, Wer bist du?");
-  assert.match(p.$("talk-button").textContent, /Für Angehörige/);
+  assert.equal(p.$("home-title").textContent, "");
+  assert.equal(p.$("home-title").hidden, true);
+  assert.equal(p.$("home-view").getAttribute("aria-label"), "Zäme – Startseite");
+  assert.match(p.$("talk-button").textContent, /Stell mir jemanden vor/);
+  assert.equal(p.$("talk-button").firstElementChild.className, "talk-intro-label");
+  assert.equal(p.$("talk-button").lastElementChild.classList.contains("icon-arrow-right"), true);
   assert.equal(
     p.window.document.body.classList.contains("needs-profile"),
     true,
@@ -85,12 +89,14 @@ test("first visit asks for information before showing the conversation action", 
   p.click("new-person-button");
   assert.notEqual(p.window.document.activeElement, p.$("field-name"));
   p.window.document.querySelector('[data-view="home"]').click();
-  assert.match(p.$("talk-button").textContent, /Für Angehörige/);
+  assert.match(p.$("talk-button").textContent, /Stell mir jemanden vor/);
   p.click("talk-button");
   p.window.document.querySelector(".person-edit").click();
   p.input("field-name", "Ruth");
   p.window.document.querySelector('[data-view="home"]').click();
   assert.equal(p.$("home-title").textContent, "Hallo, Ruth.");
+  assert.equal(p.$("home-title").hidden, false);
+  assert.equal(p.$("home-view").getAttribute("aria-labelledby"), "home-title");
   assert.equal(p.$("talk-button").textContent.trim(), "Sprechen");
   p.click("talk-button");
   assert.match(p.$("home-status").textContent, /Live-Gespräche/);
@@ -397,7 +403,21 @@ test("present people toggle independently; editing and reload preserve selection
   p.window.document.querySelector('.person-select[aria-pressed="true"]').click();
   assert.deepEqual(p.stored().selectedIds, []);
   const reload = createPage((window) => window.localStorage.setItem("hearth.guest.v3", JSON.stringify(p.stored())));
-  assert.match(reload.$("talk-button").textContent, /Für Angehörige/);
+  assert.match(reload.$("talk-button").textContent, /Stell mir jemanden vor/);
+});
+
+test("three selected people get a collective greeting; two keep their names", () => {
+  const record = { version: 3, selectedIds: ["h", "r", "p"], people: [
+    { id: "h", name: "Hilde", notes: [] },
+    { id: "r", name: "Ruth", notes: [] },
+    { id: "p", name: "Paul", notes: [] },
+  ] };
+  const p = createPage((window) => window.localStorage.setItem("hearth.guest.v3", JSON.stringify(record)));
+  assert.equal(p.$("home-title").textContent, "Hallo Miteinander");
+  assert.equal(p.$("home-title").hidden, false);
+  p.window.document.querySelector('[data-view="library"]').click();
+  p.window.document.querySelector('[data-person-id="p"] .person-select').click();
+  assert.equal(p.$("home-title").textContent, "Hallo, Hilde und Ruth.");
 });
 
 test("navigation marks the active section, including the person editor", () => {

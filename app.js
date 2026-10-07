@@ -566,17 +566,30 @@ function renderHome() {
   const people = selectedPeople();
   const names = new Intl.ListFormat("de-CH", { style: "long", type: "conjunction" }).format(people.map((person) => person.name));
   document.body.classList.toggle("needs-profile", !people.length);
-  $("home-title").textContent = people.length
+  $("home-title").textContent = people.length > 2
+    ? "Hallo Miteinander"
+    : people.length
     ? `Hallo, ${names}.`
-    : "Hallo, Wer bist du?";
+    : "";
+  $("home-title").hidden = !people.length;
+  if (people.length) {
+    $("home-view").setAttribute("aria-labelledby", "home-title");
+    $("home-view").removeAttribute("aria-label");
+  } else {
+    $("home-view").removeAttribute("aria-labelledby");
+    $("home-view").setAttribute("aria-label", "Zäme – Startseite");
+  }
   $("talk-button").innerHTML = people.length
     ? 'Sprechen <span class="icon icon-microphone" aria-hidden="true"></span>'
-    : 'Für Angehörige <span class="icon icon-arrow-right" aria-hidden="true"></span>';
+    : '<span class="talk-intro-label">Stell mir jemanden vor</span><span class="icon icon-arrow-right" aria-hidden="true"></span>';
   $("talk-button").setAttribute(
     "aria-label",
-    people.length ? "Sprechen" : "Für Angehörige öffnen",
+    people.length ? "Sprechen" : "Stell mir jemanden vor – Personenübersicht öffnen",
   );
 }
+document.addEventListener("visibilitychange", () => {
+  document.body.classList.toggle("motion-paused", document.hidden);
+});
 function stopConversation() {
   setLiveTranscript("");
   conversationRequest++;

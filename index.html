@@ -9,9 +9,9 @@
       content="Zäme: ein ruhiger Gesprächsmoment, persönlich vorbereitet von Angehörigen."
     />
     <title>Zäme · Ein Gesprächsmoment</title>
-    <link rel="stylesheet" href="styles.css?v=48" />
+    <link rel="stylesheet" href="styles.css?v=51" />
     <link rel="stylesheet" href="donation.css?v=1" />
-    <script src="app.js?v=48" defer></script>
+    <script src="app.js?v=51" defer></script>
     <script src="donation.js?v=2" defer></script>
   </head>
   <body class="is-home">
@@ -58,12 +58,12 @@
       <section
         class="view home-view"
         id="home-view"
-        aria-labelledby="home-title"
+        aria-label="Zäme – Startseite"
       >
         <div class="home-center">
-          <h1 id="home-title">Hallo, Wer bist du?</h1>
+          <h1 id="home-title" hidden></h1>
           <button type="button" class="talk-button" id="talk-button">
-            Für Angehörige
+            <span class="talk-intro-label">Stell mir jemanden vor</span>
             <span class="icon icon-arrow-right" aria-hidden="true"></span>
           </button>
           <p class="live-transcript" id="live-transcript" hidden></p>
