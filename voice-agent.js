@@ -1,0 +1,111 @@
+/* Main voice mode. Load after app.js, which retains the classic fallback. */
+import { Conversation } from '@elevenlabs/client';
+
+const classicStart = startConversation;
+const classicStop = stopConversation;
+let agentConversation = null;
+let agentReservation = null;
+let agentTimer = null;
+
+function reconcileAgent(id, reservation) {
+  if (!id || !reservation) return;
+  // Call details can take a moment to finalize. Keep the full reservation until confirmed.
+  const settle = () => fetch('api/agents/settle', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conversation_id: id, reservation }), keepalive: true,
+  }).then((response) => response.json()).catch(() => ({}));
+  let attempts = 0;
+  const retry = () => settle().then((result) => {
+    if (!result.settled && ++attempts < 6) setTimeout(retry, 5000);
+  });
+  retry();
+}
+
+stopConversation = function () {
+  const agent = agentConversation;
+  const reservation = agentReservation;
+  agentConversation = null;
+  agentReservation = null;
+  clearTimeout(agentTimer);
+  if (conversationState?.backend === 'agents') conversationState = null;
+  classicStop();
+  if (agent) {
+    const id = agent.getId();
+    agent.endSession().finally(() => reconcileAgent(id, reservation)).catch(() => {});
+  }
+};
+
+startConversation = async function () {
+  const request = ++conversationRequest;
+  conversationConnecting = true;
+  setLiveTranscript('');
+  setHomeStatus('Verbindung wird aufgebaut …');
+  $('talk-button').innerHTML = 'Gespräch beenden';
+  let config;
+  try {
+    const response = await fetch('api/agents/session', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profiles: selectedPeople(), voice: state.voiceGender }),
+    });
+    config = await response.json();
+    if (!response.ok) throw new Error('Das Gespräch konnte nicht gestartet werden.');
+    if (request !== conversationRequest) return;
+    if (config.backend !== 'agents') {
+      document.documentElement.dataset.voiceBackend = 'classic';
+      conversationConnecting = false;
+      await classicStart();
+      return;
+    }
+    document.documentElement.dataset.voiceBackend = 'agents';
+    const agent = await Conversation.startSession({
+      conversationToken: config.token,
+      connectionType: 'webrtc',
+      dynamicVariables: { profiles: config.profiles, group_rules: config.group_rules },
+      overrides: { tts: { voiceId: config.voice_id } },
+      onIncomingEvent: (event) => {
+        if (request !== conversationRequest) return;
+        if (event.type === 'tentative_user_transcript') {
+          setLiveTranscript(event.tentative_user_transcription_event?.user_transcript || '', true);
+        }
+      },
+      onMessage: ({ message, source }) => {
+        if (request !== conversationRequest) return;
+        setLiveTranscript(message || '');
+        const role = source === 'user' ? 'user' : 'assistant';
+        if (message) conversationMessages = [...conversationMessages, { role, content: message }].slice(-8);
+      },
+      onModeChange: ({ mode }) => {
+        if (request !== conversationRequest) return;
+        $('talk-button').classList.toggle('is-recording', mode === 'listening');
+        setHomeStatus(mode === 'speaking' ? 'Ich spreche.' : 'Ich höre zu.');
+      },
+      onDisconnect: () => {
+        if (request !== conversationRequest) return;
+        stopConversation();
+        setHomeStatus('Gespräch beendet.');
+      },
+      onError: () => {
+        if (request !== conversationRequest) return;
+        stopConversation();
+        setHomeStatus('Die Verbindung wurde unterbrochen. Du kannst das Gespräch neu starten.');
+      },
+    });
+    if (request !== conversationRequest) {
+      const id = agent.getId();
+      await agent.endSession();
+      reconcileAgent(id, config.reservation);
+      return;
+    }
+    agentConversation = agent;
+    agentReservation = config.reservation;
+    conversationState = { backend: 'agents' };
+    conversationConnecting = false;
+    setHomeStatus('Ich höre zu.');
+    $('talk-button').classList.add('is-recording');
+    agentTimer = setTimeout(() => { stopConversation(); setHomeStatus('Gespräch beendet.'); }, config.max_seconds * 1000);
+  } catch (error) {
+    if (request !== conversationRequest) return;
+    stopConversation();
+    setHomeStatus(error.message || 'Das Gespräch konnte nicht gestartet werden.');
+  }
+};

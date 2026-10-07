@@ -8,6 +8,17 @@ const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const js = fs.readFileSync(path.join(root, "app.js"), "utf8");
 
+test("overview orders people, add action, then voice on every screen size", () => {
+  const dom = new JSDOM(html);
+  const d = dom.window.document;
+  const follows = dom.window.Node.DOCUMENT_POSITION_FOLLOWING;
+  assert.ok(d.getElementById("person-grid").compareDocumentPosition(d.getElementById("new-person-button")) & follows);
+  assert.ok(d.getElementById("new-person-button").compareDocumentPosition(d.querySelector(".voice-choice")) & follows);
+  assert.equal(d.querySelector(".voice-choice legend").textContent, "In welcher Stimme soll Zäme sprechen");
+  assert.match(d.getElementById("editor-back").textContent, /Zurück zur Übersicht/);
+  assert.equal(d.querySelector(".page-head #new-person-button"), null);
+});
+
 function createPage(setup = () => {}) {
   const dom = new JSDOM(html, {
     url: "https://example.test/",
@@ -41,6 +52,15 @@ function createPage(setup = () => {}) {
     JSON.parse(window.localStorage.getItem("hearth.guest.v3"));
   return { window, $, click, input, stored, dialog };
 }
+
+test("onboarding centres fitting sections and gives oversized sections top breathing room", () => {
+  const p = createPage();
+  const position = (section, visible, scroll) => p.window.eval(`tourScrollDestination(${JSON.stringify(section)}, ${JSON.stringify(visible)}, ${scroll})`);
+  // Available region is 100–600, independent of the card below it.
+  assert.equal(position({ top: 700, bottom: 900 }, { top: 100, bottom: 600 }, 200), 650);
+  assert.equal(position({ top: 700, bottom: 1300 }, { top: 100, bottom: 600 }, 200), 776);
+  assert.equal(position({ top: 50, bottom: 250 }, { top: 100, bottom: 600 }, 0), 0);
+});
 
 test("first visit asks for information before showing the conversation action", () => {
   const p = createPage();
@@ -79,18 +99,19 @@ test("first visit asks for information before showing the conversation action", 
   assert.equal(p.stored().daily.used, 0); // A failed preview call is not counted.
 });
 
-test("first family visit starts at voice and people selection, then shows the booklet", () => {
+test("first family visit starts at people, then voice, then shows the booklet", () => {
   const p = createPage((window) => window.localStorage.removeItem("zaeme.family-tour.v1"));
   assert.equal(p.$("family-tour").hidden, true);
   p.click("talk-button");
   assert.equal(p.$("family-tour").hidden, false);
   assert.equal(p.$("library-view").classList.contains("hidden"), false);
-  assert.equal(p.$("tour-title").textContent, "Wie soll Zäme sprechen?");
-  p.click("tour-next");
   assert.equal(p.$("tour-title").textContent, "Personen erfassen");
   assert.match(p.$("tour-text").textContent, /Ausgewählte Menschen/);
+  assert.match(p.$("tour-text").textContent, /nicht euch selbst als Angehörige/);
   p.click("tour-next");
-  assert.equal(p.$("tour-title").textContent, "Wie ein Freundschaftsbuch");
+  assert.equal(p.$("tour-title").textContent, "Stimme");
+  p.click("tour-next");
+  assert.equal(p.$("tour-title").textContent, "Person bearbeiten");
   assert.equal(p.stored(), null);
   p.click("tour-next");
   assert.equal(p.$("tour-title").textContent, "Wer bin ich?");
@@ -103,10 +124,126 @@ test("first family visit starts at voice and people selection, then shows the bo
   assert.equal(p.stored(), null);
   p.click("tour-next");
   assert.equal(p.$("family-tour").hidden, true);
-  assert.equal(p.stored().people.length, 1);
+  assert.equal(p.stored(), null);
+  assert.equal(p.$("library-view").classList.contains("hidden"), false);
+  assert.equal(p.$("editor-view").classList.contains("hidden"), true);
+  assert.equal(p.window.document.querySelector('[data-person-id="tour-person"]'), null);
   assert.equal(p.window.document.querySelector(".editor-grid").inert, false);
   p.click("editor-back");
   assert.equal(p.$("family-tour").hidden, true);
+});
+
+test("tour booklet morphs open and closed without saving a demo profile", async () => {
+  const pending = [];
+  const p = createPage((window) => {
+    window.localStorage.removeItem("zaeme.family-tour.v1");
+    window.HTMLElement.prototype.getBoundingClientRect = function () {
+      return { left: 20, top: 160, width: this.classList.contains("profile-panel") ? 600 : 250, height: 300, bottom: 460 };
+    };
+    window.HTMLElement.prototype.animate = function (_, options) {
+      if (this.classList.contains("book-transition-paper") || this.classList.contains("book-transition-cover")) {
+        return { finished: new Promise((resolve) => pending.push({ resolve, duration: options.duration })), cancel() {} };
+      }
+      return { cancel() {} };
+    };
+  });
+  p.click("talk-button"); p.click("tour-next"); p.click("tour-next");
+  assert.equal(p.$("tour-next").disabled, true);
+  assert.equal(pending[0].duration, 360);
+  pending.splice(0).forEach(animation => animation.resolve()); await new Promise(setImmediate);
+  assert.equal(p.$("tour-next").disabled, false);
+  assert.equal(p.$("tour-progress").textContent, "3 / 5");
+  p.click("tour-next"); p.click("tour-next"); p.click("tour-next");
+  assert.equal(pending[0].duration, 360);
+  pending.splice(0).forEach(animation => animation.resolve()); await new Promise(setImmediate);
+  assert.equal(p.$("library-view").classList.contains("hidden"), false);
+  assert.equal(p.stored(), null);
+  assert.equal(p.window.document.querySelector(".book-transition-stage"), null);
+});
+
+test("ordinary notebooks share the cover hinge and restore focus on close; navigation cancels safely", async () => {
+  const pending = [], frames = [];
+  const p = createPage(window => {
+    window.localStorage.setItem("hearth.guest.v3", JSON.stringify({ version: 3, selectedIds: ["m"], people: [{ id: "m", name: "Marta", notes: [] }] }));
+    window.HTMLElement.prototype.getBoundingClientRect = function () { return { left: 20, top: 100, width: 300, height: 400, bottom: 500 }; };
+    window.HTMLElement.prototype.animate = function (keyframes) {
+      frames.push(keyframes);
+      return this.classList.contains("book-transition-paper") || this.classList.contains("book-transition-cover")
+        ? { finished: new Promise(resolve => pending.push(resolve)), cancel() {} } : { cancel() {} };
+    };
+  });
+  const mouse = element => element.dispatchEvent(new p.window.MouseEvent("click", { bubbles: true, detail: 1 }));
+  const settle = async () => { pending.splice(0).forEach(resolve => resolve()); await new Promise(setImmediate); };
+  p.window.document.querySelector('[data-view="library"]').click();
+  mouse(p.window.document.querySelector(".person-edit"));
+  assert.ok(p.window.document.querySelector(".book-transition-stage"));
+  assert.equal(p.$("family-content").inert, true);
+  assert.ok(frames.some(keyframes => keyframes.some(frame => frame.transform === "rotateY(-105deg)")));
+  await settle();
+  assert.equal(p.window.document.querySelector(".profile-panel").style.visibility, "");
+  assert.equal(p.window.document.activeElement, p.$("editor-back"));
+  mouse(p.$("editor-back")); await settle();
+  assert.equal(p.$("library-view").classList.contains("hidden"), false);
+  assert.equal(p.window.document.activeElement.className.includes("person-edit"), true);
+  mouse(p.window.document.querySelector(".person-edit"));
+  p.window.document.querySelector('[data-view="home"]').click();
+  assert.equal(p.window.document.querySelector(".book-transition-stage"), null);
+  assert.notEqual(p.$("family-content").inert, true);
+  await settle();
+  assert.equal(p.$("family-overlay").hidden, true);
+});
+
+test("keyboard opening and reduced motion do not hinge notebooks", () => {
+  for (const reduced of [false, true]) {
+    const p = createPage(window => {
+      window.localStorage.setItem("hearth.guest.v3", JSON.stringify({ version: 3, selectedIds: ["m"], people: [{ id: "m", name: "Marta", notes: [] }] }));
+      window.matchMedia = () => ({ matches: reduced });
+      window.HTMLElement.prototype.getBoundingClientRect = () => ({ left: 20, top: 100, width: 300, height: 400, bottom: 500 });
+      window.HTMLElement.prototype.animate = () => { throw new Error("should skip spatial animation"); };
+    });
+    p.window.document.querySelector('[data-view="library"]').click();
+    p.window.document.querySelector(".person-edit").dispatchEvent(new p.window.MouseEvent("click", { bubbles: true, detail: reduced ? 1 : 0 }));
+    assert.equal(p.$("editor-view").classList.contains("hidden"), false);
+    assert.equal(p.window.document.querySelector(".book-transition-stage"), null);
+  }
+});
+
+test("tour scrolls gently, waits for arrival to highlight, and cancels on dismissal", () => {
+  let scroll = 0;
+  const frames = new Map();
+  let nextFrame = 0;
+  const highlights = [];
+  const p = createPage((window) => {
+    window.localStorage.removeItem("zaeme.family-tour.v1");
+    Object.defineProperty(window, "scrollY", { get: () => scroll });
+    window.scrollTo = ({ top }) => { scroll = top; };
+    window.requestAnimationFrame = (callback) => { frames.set(++nextFrame, callback); return nextFrame; };
+    window.cancelAnimationFrame = (id) => frames.delete(id);
+    window.HTMLElement.prototype.getBoundingClientRect = function () {
+      const top = this.matches('.page-head, #person-grid, .person-add-row') ? 500 - scroll : 0;
+      return { top, bottom: top + 100, width: 200, height: 100 };
+    };
+    window.HTMLElement.prototype.animate = function () { highlights.push(this); return { cancel() {} }; };
+  });
+  const tick = (time) => {
+    const entries = [...frames.values()]; frames.clear(); entries.forEach((callback) => callback(time));
+  };
+  p.click("talk-button");
+  assert.equal(scroll, 0);
+  assert.equal(p.$("tour-next").disabled, true);
+  assert.equal(highlights.length, 0);
+  tick(0); tick(500);
+  assert.ok(scroll > 0 && scroll < 376);
+  assert.equal(highlights.length, 0);
+  tick(1100);
+  assert.equal(scroll, 376);
+  assert.equal(p.$("tour-next").disabled, false);
+  assert.equal(highlights.length, 2);
+  p.click("tour-next");
+  assert.equal(frames.size, 1);
+  p.click("tour-skip");
+  assert.equal(frames.size, 0);
+  assert.equal(p.$("tour-next").disabled, false);
 });
 
 test("tour skip and Escape are remembered, saved profiles never trigger it", () => {
@@ -137,11 +274,14 @@ test("tour aligns whole sections and briefly emphasizes titles then refresh", ()
     };
   });
   p.click("talk-button");
-  assert.equal(p.window.document.querySelector(".tour-target").classList.contains("voice-choice"), true);
+  assert.equal(p.window.document.querySelector(".tour-target").classList.contains("page-head"), true);
   assert.equal(animations.length, 2);
-  assert.equal(animations[0].element.tagName, "LABEL");
+  assert.equal(animations[0].element.id, "library-title");
   assert.equal(animations[1].options.delay, 660);
   p.click("tour-next");
+  assert.equal(p.window.document.querySelector(".tour-target").classList.contains("voice-section"), true);
+  assert.equal(animations.at(-3).element.id, "voice-title");
+  assert.equal(animations.at(-1).element.tagName, "LABEL");
   p.click("tour-next");
   animations.length = 0;
   assert.equal(p.window.document.querySelector(".tour-target").classList.contains("editor-heading"), true);
@@ -171,7 +311,6 @@ test("tour demonstrates a blank person without persisting selection or a profile
   const demo = p.window.document.querySelector('[data-person-id="tour-person"]');
   assert.equal(demo.querySelector("h3").textContent, "Neue Person");
   assert.equal(p.stored(), null);
-  p.click("tour-next");
   const showing = p.window.document.querySelector('[data-person-id="tour-person"]');
   assert.deepEqual(timers.map((timer) => timer.delay), [1300, 2800]);
   timers[0].callback();
@@ -181,6 +320,8 @@ test("tour demonstrates a blank person without persisting selection or a profile
   showing.querySelector(".person-select").click();
   assert.equal(showing.classList.contains("is-selected"), true);
   assert.equal(p.stored(), null);
+  p.click("tour-next");
+  assert.equal(p.$("tour-title").textContent, "Stimme");
   p.click("tour-next");
   assert.equal(p.$("editor-title").textContent, "Neue Person");
   assert.equal(p.$("field-name").value, "");
@@ -210,15 +351,17 @@ test("tour repeats highlights and demo every five seconds and cleans up on step 
   loops[0].callback();
   assert.equal(pops.length, 4);
   Object.defineProperty(p.window.document, "hidden", { value: false, configurable: true });
+  timers.filter(timer => !timer.cancelled)[0].callback();
+  assert.equal(p.window.document.querySelector('.person-card').classList.contains('is-selected'), true);
+  timers.filter(timer => !timer.cancelled)[1].callback();
+  assert.equal(p.window.document.querySelector('.person-card').classList.contains('is-selected'), false);
+  assert.equal(timers.length, 4);
   p.click("tour-next");
   assert.equal(loops[0].cancelled, true);
   assert.equal(loops[1].delay, 5000);
-  timers[0].callback();
-  assert.equal(p.window.document.querySelector('.person-card').classList.contains('is-selected'), true);
-  timers[1].callback();
-  assert.equal(p.window.document.querySelector('.person-card').classList.contains('is-selected'), false);
+  const before = pops.length;
   loops[1].callback();
-  assert.equal(timers.length, 4);
+  assert.equal(pops.length, before + 3);
   p.click("tour-skip");
   assert.equal(loops[1].cancelled, true);
   assert.equal(timers.every((timer) => timer.cancelled), true);
@@ -272,8 +415,39 @@ test("navigation marks the active section, including the person editor", () => {
   donate.click();
   assert.equal(library.hasAttribute("aria-current"), false);
   assert.equal(donate.getAttribute("aria-current"), "page");
-  p.window.document.querySelector('.brand[data-view="home"]').click();
+  p.window.document.querySelector('.nav-speak[data-view="home"]').click();
   assert.equal(donate.hasAttribute("aria-current"), false);
+  assert.equal(p.$("home-view").classList.contains("hidden"), false);
+});
+
+test("family overlay keeps sections together and closes back to its opener", () => {
+  const p = createPage();
+  p.$("talk-button").focus();
+  p.click("talk-button");
+  assert.equal(p.$("family-overlay").hidden, false);
+  assert.equal(p.$("home-view").inert, true);
+  assert.equal(p.$("family-panel").contains(p.$("library-view")), true);
+  assert.equal(p.$("family-content").contains(p.$("library-view")), true);
+  assert.equal(p.$("family-content").contains(p.window.document.querySelector(".site-header")), false);
+  assert.equal(p.$("family-tour").parentElement, p.$("family-panel"));
+  assert.equal(p.$("family-content").contains(p.$("family-tour")), false);
+  p.window.document.querySelector('.nav-link[data-view="donate"]').click();
+  assert.equal(p.$("family-overlay").hidden, false);
+  p.window.document.dispatchEvent(new p.window.KeyboardEvent("keydown", { key: "Escape" }));
+  assert.equal(p.$("family-overlay").hidden, true);
+  assert.equal(p.$("home-view").inert, false);
+  assert.equal(p.window.document.activeElement, p.$("talk-button"));
+});
+
+test("section changes reset only the inner overlay scroll area", () => {
+  const p = createPage();
+  p.click("talk-button");
+  p.click("tour-skip");
+  const calls = [];
+  p.$("family-content").scrollTo = options => calls.push(options);
+  p.$("family-overlay").scrollTo = () => assert.fail("the window frame must not scroll");
+  p.window.document.querySelector('.nav-link[data-view="donate"]').click();
+  assert.deepEqual(calls.map(call => call.top), [0]);
 });
 
 test("family voice choice is persisted without changing the profile", () => {
@@ -284,6 +458,7 @@ test("family voice choice is persisted without changing the profile", () => {
   assert.equal(p.stored().voiceGender, "male");
   assert.deepEqual(p.stored().people, []);
 });
+
 
 test("live turns use native VAD finals, stream silence and resume after replies", async () => {
   const calls = [];
@@ -373,6 +548,14 @@ test("live turns use native VAD finals, stream silence and resume after replies"
   assert.match(p.$("home-status").textContent, /Mikrofon wurde unterbrochen/);
   assert.equal(stopped, 1);
   assert.equal(silenceCheck, null);
+  p.click("talk-button");
+  await new Promise(setImmediate);
+  socket.emit("message", { data: JSON.stringify({ message_type: "partial_transcript", text: "Ein letzter Satz." }) });
+  assert.equal(p.$("live-transcript").hidden, false);
+  p.click("talk-button");
+  assert.equal(p.$("live-transcript").textContent, "");
+  assert.equal(p.$("live-transcript").hidden, true);
+  assert.equal(p.$("home-status").textContent, "Gespräch beendet.");
 });
 
 test("selected person stays first and the limit message replaces the add button", () => {

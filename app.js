@@ -6,6 +6,22 @@ let tourStep = -1;
 let tourAnimations = [];
 let tourTimers = [];
 let tourLoop = null;
+let tourMorph = null;
+let cancelTourScroll = null;
+let overlayOpener = null;
+let bookTransition = null;
+let bookNavigating = false;
+let libraryScroll = 0;
+function scrollSurface() {
+  const overlay = document.getElementById("family-overlay");
+  const content = document.getElementById("family-content");
+  return overlay && !overlay.hidden && typeof content?.scrollTo === "function" ? content : window;
+}
+function scrollPosition() { const surface = scrollSurface(); return surface === window ? window.scrollY : surface.scrollTop; }
+function tourScrollInset() {
+  const surface = scrollSurface();
+  return surface === window ? Math.max(48, document.querySelector(".site-header").getBoundingClientRect().height + 24) : surface.getBoundingClientRect().top + 24;
+}
 let tourPersonSelected = false;
 const tourPerson = { id: "tour-person", name: "", notes: [], language: "Schweizerdeutsch", address: "Sie" };
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
@@ -134,6 +150,10 @@ function setSelection(ids) {
   conversationPersonId = null;
 }
 function showView(name, touring = false) {
+  if (!bookNavigating) bookTransition?.();
+  const overlay = $("family-overlay");
+  const opening = name !== "home" && overlay.hidden;
+  if (opening) overlayOpener = document.activeElement;
   if (tourStep >= 0 && !touring) finishTour(false, false);
   if (name !== "home") stopConversation();
   if (name !== "home") setLiveTranscript("");
@@ -142,8 +162,12 @@ function showView(name, touring = false) {
     if (recordingState) discardRecording();
   }
   document.body.classList.toggle("is-home", name === "home");
+  overlay.hidden = name === "home";
+  document.querySelector(".home-header").inert = name !== "home";
+  $("home-view").inert = name !== "home";
+  $("home-view").setAttribute("aria-hidden", String(name !== "home"));
   for (const view of ["home", "library", "editor", "donate"])
-    $(`${view}-view`).classList.toggle("hidden", view !== name);
+    $(`${view}-view`).classList.toggle("hidden", view !== "home" && view !== name);
   for (const link of document.querySelectorAll(".nav-link")) {
     const active =
       link.dataset.view === (name === "editor" ? "library" : name);
@@ -157,12 +181,15 @@ function showView(name, touring = false) {
     renderHome();
   }
   if (name === "editor") renderEditor();
-  window.scrollTo({ top: 0, behavior: "auto" });
+  if (!touring) scrollSurface().scrollTo({ top: 0, behavior: "instant" });
+  if (opening) document.querySelector('.nav-link[data-view="library"]').focus({ preventScroll: true });
+  if (name === "home" && overlayOpener) { overlayOpener.focus({ preventScroll: true }); overlayOpener = null; }
   if (tourStep < 0 && name === "library" && !state.people.some((person) => person.name?.trim())) {
     try { if (!localStorage.getItem(TOUR_KEY)) { tourStep = 0; editingId = null; showTourStep(); } } catch { /* Optional help. */ }
   }
 }
-function showTourStep() {
+function showTourStep(instant = false) {
+  cancelTourScroll?.();
   clearInterval(tourLoop);
   tourLoop = null;
   tourTimers.forEach(clearTimeout);
@@ -172,11 +199,11 @@ function showTourStep() {
   tourAnimations = [];
   document.querySelectorAll(".tour-target").forEach((element) => element.classList.remove("tour-target"));
   const steps = [
-    ["Wie soll Zäme sprechen?", "Hier kannst du wählen, ob Zäme mit einer männlichen oder weiblichen Stimme sprechen soll.", ".voice-choice"],
-    ["Personen erfassen", "Hier erfasst du die Profile der Menschen, mit denen Zäme ein Gespräch führen soll. Du kannst mehrere Menschen erfassen und die Profile über den Stift-Knopf bearbeiten. Ausgewählte Menschen werden ins Gespräch mit einbezogen. Klicke einfach auf die entsprechenden Profile.", "#library-view .page-head"],
-    ["Wie ein Freundschaftsbuch", "Zäme begleitet Menschen mit Demenz im Gespräch. Als Angehörige füllt ihr dieses Profil wie ein Freundschaftsbuch: mit Namen, Vorlieben und gemeinsamen Erinnerungen.", ".editor-heading"],
+    ["Personen erfassen", "Hier erfasst ihr euren Menschen mit Demenz – nicht euch selbst als Angehörige. Mit dem Stift bearbeitet ihr Profile. Tippt an, wer beim Gespräch dabei ist. Ausgewählte Menschen sind grün markiert.", "#library-view .page-head"],
+    ["Stimme", "Hier kannst du wählen, ob Zäme mit einer männlichen oder weiblichen Stimme sprechen soll.", ".voice-section"],
+    ["Person bearbeiten", "Zäme begleitet Menschen mit Demenz im Gespräch. Als Angehörige füllt ihr dieses Profil wie ein Freundschaftsbuch: mit Namen, Vorlieben und gemeinsamen Erinnerungen.", ".editor-heading"],
     ["Wer bin ich?", "Was macht euren Menschen aus? Hier fasst Zäme eure Erinnerungen zusammen, die ihr unten erfasst habt. Die Zusammenfassung muss jeweils mit dem Pfeil-Symbol rechts aktualisiert werden, wenn ihr neue Erinnerungen hinzufügt.", ".compiled-title"],
-    ["Gemeinsame Erinnerungen", "Ein Ausflug, ein Lieblingslied oder ein vertrautes Ritual: Schreibt auf, was euch verbindet, oder erzählt es ins Mikrofon. Nach dem Speichern könnt ihr jede Erinnerung antippen und mit dem Stift bearbeiten.", ".notes-panel"],
+    ["Gemeinsame Erinnerungen", "Ein Ausflug, ein Lieblingslied oder ein vertrautes Ritual: Schreibt auf, was euch verbindet, oder erzählt es ins Mikrofon. Gespeicherte Erinnerungen könnt ihr antippen und mit dem Stift bearbeiten. Danach geht’s zurück zur Personenübersicht. Mit dem Kreuz oben rechts schliesst ihr das Fenster und kommt zurück zum Gespräch.", ".notes-panel"],
   ];
   showView(tourStep < 2 ? "library" : "editor", true);
   $("editor-view").querySelector(".editor-grid").inert = true;
@@ -188,22 +215,24 @@ function showTourStep() {
   $("tour-text").textContent = text;
   brandMentions($("tour-text"));
   $("tour-progress").textContent = `${tourStep + 1} / 5`;
-  $("tour-next").setAttribute("aria-label", tourStep === 4 ? "Profil anlegen" : "Weiter");
+  $("tour-next").setAttribute("aria-label", tourStep === 4 ? "Zur Personenübersicht" : "Weiter");
   $("family-tour").hidden = false;
   $("family-tour").dataset.step = String(tourStep);
   const target = document.querySelector(selector);
   target.classList.add("tour-target");
-  alignTourSection();
+  let startHighlights = () => {};
   if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
     const highlights = tourStep === 3
       ? [document.querySelector(".compiled-title h3"), $("compile-button")]
       : tourStep === 4 ? [$("notes-heading"), $("note-form")]
-      : tourStep === 1 ? [$("library-title"), $("new-person-button")]
-      : tourStep === 0 ? [...document.querySelectorAll(".voice-choice-options label")] : [];
+      : tourStep === 0 ? [$("library-title"), $("new-person-button")]
+      : tourStep === 1 ? [$("voice-title"), ...document.querySelectorAll(".voice-choice-options label")] : [];
     const playHighlights = () => {
       if (document.hidden || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
       const bounds = target.getBoundingClientRect();
-      if (bounds.height > 0 && (bounds.bottom < 0 || bounds.top > window.innerHeight)) return;
+      const surface = scrollSurface();
+      const visible = surface === window ? { top: 0, bottom: window.innerHeight } : surface.getBoundingClientRect();
+      if (bounds.height > 0 && (bounds.bottom < visible.top || bounds.top > visible.bottom)) return;
       tourAnimations.forEach((animation) => animation.cancel());
       tourAnimations = [];
       tourTimers.forEach(clearTimeout);
@@ -217,12 +246,12 @@ function showTourStep() {
         { transform: "translateY(0) scale(1)", offset: 1 },
       ], { duration: 1000, delay: 240 + index * 420, easing: "linear" }));
     });
-    if (tourStep === 1) {
+    if (tourStep === 0) {
       const demo = document.querySelector('[data-person-id="tour-person"]');
       if (demo) {
         for (const [delay, selected] of [[1300, true], [2800, false]]) {
           tourTimers.push(setTimeout(() => {
-            if (tourStep !== 1 || !demo.isConnected || document.hidden) return;
+            if (tourStep !== 0 || !demo.isConnected || document.hidden) return;
             tourPersonSelected = selected;
             updatePersonSelection(demo, tourPerson, selected);
           }, delay));
@@ -230,19 +259,167 @@ function showTourStep() {
       }
     }
     };
-    playHighlights();
-    if (highlights.length || tourStep === 1) tourLoop = setInterval(playHighlights, 5000);
+    startHighlights = () => {
+      playHighlights();
+      if (highlights.length || tourStep === 0) tourLoop = setInterval(playHighlights, 5000);
+    };
   }
-  $("tour-next").focus({ preventScroll: true });
+  alignTourSection(!instant, () => {
+    startHighlights();
+    $("tour-next").focus({ preventScroll: true });
+  });
 }
-function alignTourSection() {
+function scrollTourTo(top, smooth, onArrive = () => {}) {
+  cancelTourScroll?.();
+  const surface = scrollSurface();
+  const start = scrollPosition();
+  const distance = top - start;
+  if (!smooth || Math.abs(distance) < 2 || !window.requestAnimationFrame || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+    surface.scrollTo({ top, behavior: "instant" });
+    onArrive();
+    return;
+  }
+  const duration = Math.min(1500, 900 + Math.abs(distance) * .25);
+  let frame, started;
+  $("tour-next").disabled = true;
+  const cleanup = () => {
+    cancelAnimationFrame(frame);
+    window.removeEventListener("wheel", interrupt);
+    window.removeEventListener("touchstart", interrupt);
+    window.removeEventListener("keydown", interruptKey);
+    document.removeEventListener("visibilitychange", visibility);
+    $("tour-next").disabled = false;
+    cancelTourScroll = null;
+  };
+  const interrupt = () => { cleanup(); onArrive(); };
+  const interruptKey = (event) => { if (["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End", " "].includes(event.key)) interrupt(); };
+  const visibility = () => { if (document.hidden) interrupt(); };
+  cancelTourScroll = cleanup;
+  window.addEventListener("wheel", interrupt, { passive: true });
+  window.addEventListener("touchstart", interrupt, { passive: true });
+  window.addEventListener("keydown", interruptKey);
+  document.addEventListener("visibilitychange", visibility);
+  const tick = (time) => {
+    started ??= time;
+    const progress = Math.min(1, (time - started) / duration);
+    const eased = (1 - Math.cos(Math.PI * progress)) / 2;
+    surface.scrollTo({ top: start + distance * eased, behavior: "instant" });
+    if (progress < 1) frame = requestAnimationFrame(tick);
+    else { cleanup(); onArrive(); }
+  };
+  frame = requestAnimationFrame(tick);
+}
+function alignTourSection(smooth = false, onArrive = () => {}) {
   const target = document.querySelector(".tour-target");
   if (tourStep < 0 || !target) return;
-  // 'auto' inherits the page's smooth scrolling; use an immediate, exact alignment.
-  window.scrollTo({ top: Math.max(0, window.scrollY + target.getBoundingClientRect().top - 48), behavior: "instant" });
+  // Measure the whole subject, not just the heading that receives the pop.
+  const selectors = ["#library-view .page-head, #person-grid, .person-add-row", ".voice-section", ".editor-heading, .profile-panel", ".compiled-card", ".notes-panel"];
+  const rects = [...document.querySelectorAll(selectors[tourStep])]
+    .map(element => element.getBoundingClientRect()).filter(rect => rect.height > 0);
+  const section = { top: Math.min(...rects.map(rect => rect.top)), bottom: Math.max(...rects.map(rect => rect.bottom)) };
+  const surface = scrollSurface();
+  const viewport = surface === window ? { top: tourScrollInset() - 24, bottom: window.innerHeight } : surface.getBoundingClientRect();
+  const card = $("family-tour").getBoundingClientRect();
+  const visible = { top: viewport.top, bottom: Math.min(viewport.bottom, card.top) };
+  const top = tourScrollDestination(section, visible, scrollPosition());
+  scrollTourTo(top, smooth, onArrive);
 }
-window.addEventListener("resize", alignTourSection);
+function tourScrollDestination(section, visible, currentScroll) {
+  const margin = 24;
+  const available = Math.max(0, visible.bottom - visible.top - margin * 2);
+  const height = section.bottom - section.top;
+  const inset = margin + Math.max(0, (available - height) / 2);
+  return Math.max(0, currentScroll + section.top - visible.top - inset);
+}
+window.addEventListener("resize", () => { if (!cancelTourScroll) alignTourSection(); });
+function animateBook(opening, source, navigate, targetSelector, complete = () => {}, enabled = true) {
+  bookTransition?.();
+  const content = $("family-content");
+  const viewport = content.getBoundingClientRect();
+  const bounds = element => {
+    const rect = element?.getBoundingClientRect();
+    if (!rect?.width || !rect.height) return null;
+    const top = Math.max(rect.top, viewport.top), bottom = Math.min(rect.bottom, viewport.bottom);
+    return bottom > top ? { left: rect.left, top, width: rect.width, height: bottom - top } : null;
+  };
+  const from = bounds(source);
+  const coverColor = source ? getComputedStyle(source).backgroundColor : "#dff0e3";
+  const cover = opening && source ? source.cloneNode(true) : null;
+  bookNavigating = true;
+  try { navigate(); } finally { bookNavigating = false; }
+  const target = document.querySelector(targetSelector);
+  const to = bounds(target);
+  if (!enabled || !from || !to || typeof target?.animate !== "function" || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) { complete(); return; }
+  const cardBounds = opening ? from : to;
+  const pageBounds = opening ? to : from;
+  const stage = document.createElement("div");
+  stage.className = "book-transition-stage";
+  stage.setAttribute("aria-hidden", "true");
+  Object.assign(stage.style, { left: `${viewport.left}px`, top: `${viewport.top}px`, width: `${viewport.width}px`, height: `${viewport.height}px` });
+  const paper = document.createElement("div");
+  paper.className = "book-transition-paper";
+  Object.assign(paper.style, { left: `${cardBounds.left - viewport.left}px`, top: `${cardBounds.top - viewport.top}px`, width: `${cardBounds.width}px`, height: `${cardBounds.height}px` });
+  const lid = cover || target.cloneNode(true);
+  lid.className = "book-transition-cover";
+  lid.style.backgroundColor = opening ? coverColor : getComputedStyle(target).backgroundColor;
+  lid.removeAttribute("id");
+  lid.querySelectorAll("[id]").forEach(element => element.removeAttribute("id"));
+  lid.querySelectorAll("button").forEach(element => { element.tabIndex = -1; });
+  paper.append(lid); stage.append(paper); document.body.append(stage);
+  const originalVisibility = target.style.visibility;
+  const originalInert = content.inert;
+  target.style.visibility = "hidden";
+  content.inert = true;
+  $("family-tour").classList.add("tour-morphing");
+  const transform = `translate(${pageBounds.left - cardBounds.left}px, ${pageBounds.top - cardBounds.top}px) scale(${pageBounds.width / cardBounds.width}, ${pageBounds.height / cardBounds.height})`;
+  const animations = [
+    paper.animate(opening ? [{ transform: "none" }, { transform }] : [{ transform }, { transform: "none" }], { duration: 360, delay: opening ? 220 : 0, easing: "cubic-bezier(.32, .72, 0, 1)", fill: "both" }),
+    lid.animate(opening ? [{ transform: "rotateY(0deg)", opacity: 1 }, { transform: "rotateY(-105deg)", opacity: 0 }] : [{ transform: "rotateY(-105deg)", opacity: 0 }, { transform: "rotateY(0deg)", opacity: 1 }], { duration: 300, delay: opening ? 0 : 260, easing: "cubic-bezier(.4, 0, .2, 1)", fill: "both" }),
+  ];
+  const cleanup = () => {
+    animations.forEach(animation => animation.cancel()); stage.remove();
+    target.style.visibility = originalVisibility; content.inert = originalInert;
+    $("family-tour").classList.remove("tour-morphing"); bookTransition = null;
+  };
+  bookTransition = cleanup;
+  Promise.all(animations.map(animation => animation.finished)).then(() => {
+    if (bookTransition !== cleanup) return;
+    cleanup();
+    target.animate([{ opacity: .3 }, { opacity: 1 }], { duration: 140 });
+    complete();
+  }).catch(() => {});
+}
+function morphTourBook(opening, positioned = false) {
+  if (tourMorph) return;
+  const cardSelector = '[data-person-id="tour-person"]';
+  const source = document.querySelector(opening ? cardSelector : ".profile-panel");
+  // After choosing a voice, return gently to the booklet before opening it.
+  if (opening && !positioned) {
+    const surface = scrollSurface();
+    const viewport = surface === window ? { top: 0, bottom: window.innerHeight } : surface.getBoundingClientRect();
+    const visible = { top: viewport.top, bottom: Math.min(viewport.bottom, $("family-tour").getBoundingClientRect().top) };
+    scrollTourTo(tourScrollDestination(source.getBoundingClientRect(), visible, scrollPosition()), true, () => { if (tourStep === 1) morphTourBook(true, true); });
+    return;
+  }
+  // Bring the open booklet into view before closing it back into the overview.
+  if (!opening && !positioned) {
+    const heading = document.querySelector(".editor-heading");
+    const top = Math.max(0, scrollPosition() + heading.getBoundingClientRect().top - tourScrollInset());
+    scrollTourTo(top, true, () => { if (tourStep === 4) morphTourBook(false, true); });
+    return;
+  }
+  animateBook(opening, source, () => { tourStep = opening ? 2 : 0; showTourStep(true); }, opening ? ".profile-panel" : cardSelector, () => {
+    $("tour-next").disabled = false; tourMorph = null;
+    if (opening) $("tour-next").focus({ preventScroll: true }); else finishTour();
+  });
+  if (bookTransition) {
+    $("tour-next").disabled = true;
+    tourMorph = () => { bookTransition?.(); $("tour-next").disabled = false; tourMorph = null; };
+  }
+}
 function finishTour(create = false, navigate = true) {
+  cancelTourScroll?.();
+  tourMorph?.();
   clearInterval(tourLoop);
   tourLoop = null;
   tourTimers.forEach(clearTimeout);
@@ -401,6 +578,7 @@ function renderHome() {
   );
 }
 function stopConversation() {
+  setLiveTranscript("");
   conversationRequest++;
   conversationConnecting = false;
   if (conversationState) {
@@ -719,9 +897,9 @@ function renderLibrary() {
     );
     edit.title = "Profil bearbeiten";
     edit.innerHTML = '<span class="icon icon-edit" aria-hidden="true"></span>';
-    edit.addEventListener("click", () => {
-      if (demo) { tourStep = 2; showTourStep(); }
-      else openPerson(person.id);
+    edit.addEventListener("click", (event) => {
+      if (demo) morphTourBook(true);
+      else openPerson(person.id, event.detail !== 0);
     });
     card.append(select, edit);
     grid.append(card);
@@ -758,14 +936,22 @@ function addPerson() {
   persist();
   openPerson(person.id);
 }
-function openPerson(id) {
+function openPerson(id, animate = true) {
+  const source = [...document.querySelectorAll(".person-card")].find(card => card.dataset.personId === id);
+  libraryScroll = scrollPosition();
   editingId = id;
   noteEditingId = null;
   $("note-text").value = "";
   $("save-note-button").setAttribute("aria-label", "Erinnerung speichern");
   updateComposerSave();
   setComposerStatus("");
-  showView("editor");
+  animateBook(true, source, () => showView("editor"), ".profile-panel", () => $("editor-back").focus({ preventScroll: true }), animate);
+}
+function closePerson(animate = true) {
+  const id = editingId;
+  animateBook(false, document.querySelector(".profile-panel"), () => {
+    showView("library"); scrollSurface().scrollTo({ top: libraryScroll, behavior: "instant" });
+  }, `[data-person-id="${id}"]`, () => document.querySelector(`[data-person-id="${id}"] .person-edit`)?.focus({ preventScroll: true }), animate);
 }
 function renderEditor() {
   const person = currentPerson();
@@ -1208,19 +1394,28 @@ for (let i = 0; i < 29; i++) {
 document.querySelectorAll("[data-view]").forEach((button) =>
   button.addEventListener("click", (event) => {
     event.preventDefault();
-    showView(button.dataset.view);
+    if (button.dataset.view === "library" && !$("editor-view").classList.contains("hidden") && tourStep < 0) closePerson(event.detail !== 0);
+    else showView(button.dataset.view);
   }),
 );
 $("new-person-button").addEventListener("click", addPerson);
 $("tour-next").addEventListener("click", () => {
-  if (tourStep === 4) finishTour(true);
+  if (tourStep === 4) morphTourBook(false);
+  else if (tourStep === 1) morphTourBook(true);
   else { tourStep++; showTourStep(); }
 });
 $("tour-skip").addEventListener("click", () => finishTour());
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && tourStep >= 0) finishTour();
+  else if (event.key === "Escape" && !$("family-overlay").hidden && !$("app-dialog").open) showView("home");
+  if (event.key === "Tab" && !$("family-overlay").hidden && !$("app-dialog").open) {
+    const controls = [...$("family-overlay").querySelectorAll('button:not(:disabled), a[href], input, textarea, select')].filter(el => !el.closest('[inert]') && el.getClientRects().length);
+    const first = controls[0], last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }
 });
-$("editor-back").addEventListener("click", () => showView("library"));
+$("editor-back").addEventListener("click", event => closePerson(event.detail !== 0));
 $("delete-person-button").addEventListener("click", deletePerson);
 for (const id of [
   "field-name",
@@ -1288,4 +1483,11 @@ $("donate-button").addEventListener("click", () =>
 );
 showView("home");
 updateComposerSave();
+const familyContent = document.createElement("div");
+familyContent.id = "family-content";
+familyContent.className = "family-content";
+$("family-panel").append(familyContent);
+for (const selector of ["#library-view", "#editor-view", "#donate-view", ".site-footer"]) familyContent.append(document.querySelector(selector));
+$("family-panel").append($("family-tour"));
 brandMentions(document.querySelector("main"));
+brandMentions($("family-panel"));

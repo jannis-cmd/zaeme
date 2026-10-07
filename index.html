@@ -9,12 +9,18 @@
       content="Zäme: ein ruhiger Gesprächsmoment, persönlich vorbereitet von Angehörigen."
     />
     <title>Zäme · Ein Gesprächsmoment</title>
-    <link rel="stylesheet" href="styles.css?v=30" />
+    <link rel="stylesheet" href="styles.css?v=48" />
     <link rel="stylesheet" href="donation.css?v=1" />
-    <script src="app.js?v=30" defer></script>
+    <script src="app.js?v=48" defer></script>
     <script src="donation.js?v=2" defer></script>
   </head>
   <body class="is-home">
+    <header class="home-header"><div class="header-inner">
+      <a class="brand" href="#start" data-view="home" aria-label="Zäme, zur Startseite"><span class="wordmark" aria-hidden="true"><span>Z</span><span>ä</span><span>m</span><span>e</span></span></a>
+      <button class="home-family-link" type="button" data-view="library">Für Angehörige</button>
+    </div></header>
+    <div id="family-overlay" class="family-overlay" role="dialog" aria-modal="true" aria-label="Für Angehörige und Spenden" hidden>
+    <div id="family-panel" class="family-panel">
     <header class="site-header">
       <div class="header-inner">
         <a
@@ -29,11 +35,12 @@
           ></a
         >
         <nav aria-label="Hauptnavigation">
+          <div class="nav-family-tab">
           <button type="button" class="nav-link" data-view="library">
             Für Angehörige</button
           ><button type="button" class="nav-link" data-view="donate">
             Spenden</button
-          ><button
+          ></div><button
             type="button"
             class="nav-login"
             id="login-button"
@@ -42,9 +49,11 @@
           >
             <span class="icon icon-profile" aria-hidden="true"></span>
           </button>
+          <button type="button" class="icon-button overlay-close nav-speak" data-view="home" aria-label="Schliessen und zurück zum Sprechen" title="Zurück zum Sprechen"><span class="icon icon-xmark" aria-hidden="true"></span></button>
         </nav>
       </div>
     </header>
+    </div></div>
     <main>
       <section
         class="view home-view"
@@ -75,17 +84,18 @@
           <span class="icon icon-arrow-left" aria-hidden="true"></span>
           <span id="library-home-label">Zur Startseite</span>
         </button>
-        <fieldset class="voice-choice" aria-label="Stimme für das Gespräch">
-          <legend>Stimme</legend>
-          <div class="voice-choice-options">
-            <label><input type="radio" name="voice-gender" value="female" /> Weiblich</label>
-            <label><input type="radio" name="voice-gender" value="male" /> Männlich</label>
-          </div>
-        </fieldset>
         <div class="page-head">
           <div>
             <h1 id="library-title">Personen</h1>
+            <p>Für die Menschen mit Demenz, die mit Zäme sprechen.</p>
           </div>
+        </div>
+        <p class="limit-message" id="person-limit-message" hidden>
+          Hier ist Platz für drei Personen. Löschen Sie ein Profil, um ein neues
+          anzulegen.
+        </p>
+        <div class="person-grid" id="person-grid"></div>
+        <div class="person-add-row">
           <button
             class="icon-button add-person-button"
             id="new-person-button"
@@ -96,11 +106,16 @@
             <span class="icon icon-plus" aria-hidden="true"></span>
           </button>
         </div>
-        <p class="limit-message" id="person-limit-message" hidden>
-          Hier ist Platz für drei Personen. Löschen Sie ein Profil, um ein neues
-          anzulegen.
-        </p>
-        <div class="person-grid" id="person-grid"></div>
+        <section class="voice-section" aria-labelledby="voice-title">
+          <h2 id="voice-title">Stimme</h2>
+        <fieldset class="voice-choice" aria-label="Stimme für das Gespräch">
+          <legend>In welcher Stimme soll Zäme sprechen</legend>
+          <div class="voice-choice-options">
+            <label><input type="radio" name="voice-gender" value="female" /> Weiblich</label>
+            <label><input type="radio" name="voice-gender" value="male" /> Männlich</label>
+          </div>
+        </fieldset>
+        </section>
       </section>
       <section
         class="view page-view editor-view hidden"
@@ -108,7 +123,7 @@
         aria-labelledby="editor-title"
       >
         <button class="back-button" id="editor-back" type="button">
-          <span class="icon icon-arrow-left" aria-hidden="true"></span> Personen
+          <span class="icon icon-arrow-left" aria-hidden="true"></span> Zurück zur Übersicht
         </button>
         <div class="editor-heading">
           <h1 id="editor-title">Profil</h1>
@@ -300,7 +315,9 @@
         </section>
         <section class="donation-technical" aria-labelledby="donation-technical-title">
           <h2 id="donation-technical-title">Technischer Hintergrund</h2>
-          <p>Zäme wird als Open-Source-Projekt entwickelt: offen zum Nachvollziehen, Mitgestalten und Weiterverwenden. Das KI-Modell läuft bei <a href="https://www.infomaniak.com/de/hosting/ai-tools" target="_blank" rel="noopener noreferrer">Infomaniak in der Schweiz</a>. Für die Sprachverarbeitung nutzen wir ElevenLabs. <a href="https://elevenlabs.io/docs/overview/administration/data-residency" target="_blank" rel="noopener noreferrer">EU-Hosting für ElevenLabs</a> ist geplant, aber noch nicht eingerichtet. Die Vorschau nutzt derzeit den Standarddienst; bitte nur erfundene Testdaten verwenden.</p>
+          <p>Zäme wird als Open-Source-Projekt entwickelt: offen zum Nachvollziehen, Mitgestalten und Weiterverwenden.</p>
+          <p>KI: <a href="https://www.infomaniak.com/de/hosting/ai-tools" target="_blank" rel="noopener noreferrer">Infomaniak</a> · Stimme: <a href="https://elevenlabs.io/" target="_blank" rel="noopener noreferrer">ElevenLabs</a></p>
+          <p>Bitte in der Vorschau nur erfundene Testdaten verwenden.</p>
           <a id="donation-github" class="donation-source-link" hidden target="_blank" rel="noopener noreferrer">Quellcode auf GitHub <span class="icon icon-arrow-up-right" aria-hidden="true"></span></a>
           <p class="donation-caption" id="donation-source-note">Der öffentliche GitHub-Link folgt mit der Veröffentlichung.</p>
         </section>
