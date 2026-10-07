@@ -185,6 +185,10 @@ a {
   justify-content: space-between;
   gap: 24px;
 }
+.home-header .header-inner {
+  width: auto;
+  margin-inline: clamp(18px, 3vw, 40px);
+}
 .brand {
   text-decoration: none;
   font-size: 29px;

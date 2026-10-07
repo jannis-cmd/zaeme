@@ -38,11 +38,47 @@ Zäme ergänzt menschliche Nähe, ersetzt aber keine Angehörigen, Betreuung, me
 Angehörige bereiten das Freundschaftsbuch vor. Danach kann ihr Mensch mit Zäme sprechen.<br>
 Care partners prepare the friendship book. Then their loved one can talk with Zäme.
 
-| | |
-| --- | --- |
-| **1 · Stell mir jemanden vor**<br>Introduce someone.<br>![Startknopf zum Vorstellen / Introduction button](docs/images/flow-01-introduce.png)<br>Den Knopf drücken, um zur Angehörigen-Seite zu kommen.<br>Press the button to open the family page. | **2 · Neue Person erfassen**<br>Create a new profile.<br>![Leeres Profil / Blank profile](docs/images/flow-02-create-person.png)<br>Mit dem Plus ein Profil für den Menschen mit Demenz anlegen.<br>Use the plus button to create a profile for the person living with dementia. |
-| **3 · Erinnerungen hinzufügen**<br>Add shared memories.<br>![Gespeicherte Erinnerungsblase / Saved memory bubble](docs/images/flow-03-memories.png)<br>Etwas schreiben oder einsprechen, dann mit dem Häkchen speichern.<br>Type or record a memory, then save it with the checkmark. | **4 · Zusammenfassung aktualisieren**<br>Refresh the summary.<br>![Bestätigung für Wer bin ich / Summary refresh confirmation](docs/images/flow-04-sync-summary.png)<br>Bei «Wer bin ich?» den Pfeil drücken und «Aktualisieren» bestätigen.<br>Press the refresh arrow beside “Wer bin ich?” and confirm. |
-| **5 · Stimme wählen**<br>Choose a voice.<br>![Männliche oder weibliche Stimme wählen / Voice choice](docs/images/flow-05-voice.png)<br>Zur Übersicht zurückgehen, eine Stimme wählen und auswählen, wer dabei ist.<br>Return to the overview, choose a voice and select who is present. | **6 · Miteinander sprechen**<br>Let the conversation begin.<br>![Gesprächsbutton für Hilde / Talk button for Hilde](docs/images/flow-06-talk.png)<br>Zur Startseite zurückkehren. Einmal «Sprechen» drücken und den Menschen mit Zäme sprechen lassen.<br>Return home. Press “Sprechen” once and let your loved one talk with Zäme. |
+### 1 · Stell mir jemanden vor / Introduce someone
+
+Den Knopf drücken, um zur Angehörigen-Seite zu kommen.<br>
+Press the button to open the family page.
+
+![Startknopf zum Vorstellen / Introduction button](docs/images/flow-01-introduce.png)
+
+### 2 · Neue Person erfassen / Create a new profile
+
+Mit dem Plus ein Profil für den Menschen mit Demenz anlegen.<br>
+Use the plus button to create a profile for the person living with dementia.
+
+![Leeres Profil / Blank profile](docs/images/flow-02-create-person.png)
+
+### 3 · Erinnerungen hinzufügen / Add shared memories
+
+Etwas schreiben oder einsprechen, dann mit dem Häkchen speichern.<br>
+Type or record a memory, then save it with the checkmark.
+
+![Gespeicherte Erinnerungsblase / Saved memory bubble](docs/images/flow-03-memories.png)
+
+### 4 · Zusammenfassung aktualisieren / Refresh the summary
+
+Bei «Wer bin ich?» den Pfeil drücken und «Aktualisieren» bestätigen.<br>
+Press the refresh arrow beside “Wer bin ich?” and confirm.
+
+![Bestätigung für Wer bin ich / Summary refresh confirmation](docs/images/flow-04-sync-summary.png)
+
+### 5 · Stimme wählen / Choose a voice
+
+Zur Übersicht zurückgehen, eine Stimme wählen und auswählen, wer dabei ist.<br>
+Return to the overview, choose a voice and select who is present.
+
+![Männliche oder weibliche Stimme wählen / Voice choice](docs/images/flow-05-voice.png)
+
+### 6 · Miteinander sprechen / Let the conversation begin
+
+Zur Startseite zurückkehren. Einmal «Sprechen» drücken und den Menschen mit Zäme sprechen lassen.<br>
+Return home. Press “Sprechen” once and let your loved one talk with Zäme.
+
+![Gesprächsbutton für Hilde / Talk button for Hilde](docs/images/flow-06-talk.png)
 
 *Alle Menschen und Erinnerungen in diesen Screenshots sind erfunden. / All people and memories in these screenshots are fictional.*
 
