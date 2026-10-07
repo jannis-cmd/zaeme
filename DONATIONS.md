@@ -10,6 +10,6 @@ The donation surface lives in `index.html`, `donation.css` and `donation.js`. It
 
 This is a manually updated statement, not an automatic accounting/payment integration. Never put account credentials, donor identities or other private information in this public file. Payment-provider charges must be accounted for when determining the available donated amount.
 
-The page states that Infomaniak supplies the model in Switzerland and ElevenLabs EU hosting is planned but not configured. The preview currently uses the standard ElevenLabs environment. Before use with real care data, resolve residency, retention, consent and access protection; do not present a planned configuration as deployed.
+The page identifies Infomaniak for the model and ElevenLabs for voice. It does not promise EU hosting or a residency guarantee. Before use with real care data, resolve residency, retention, consent and access protection; do not present a planned configuration as deployed.
 
 Run `node --test test/donation.test.cjs test/mockup.test.cjs` for configuration safety, rendering state, and existing app regression checks.

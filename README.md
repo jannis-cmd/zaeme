@@ -33,21 +33,16 @@ Langfristig soll Zäme für Menschen mit Demenz kostenlos sein. Spenden sollen d
 
 Zäme ergänzt menschliche Nähe, ersetzt aber keine Angehörigen, Betreuung, medizinischen Rat oder Hilfe im Notfall. Ein gesundheitlicher Nutzen ist nicht belegt. Bitte vorerst **nur mit erfundenen Daten testen**: Vor einem Einsatz mit echten Menschen müssen Einwilligung, Datenschutz und fachlich begleitetes Testen geklärt werden.
 
-## Einblicke / A look inside
+## In sechs Schritten / Six simple steps
 
-### Menschen und Stimmen / People and voices
+Angehörige bereiten das Freundschaftsbuch vor. Danach kann ihr Mensch mit Zäme sprechen.<br>
+Care partners prepare the friendship book. Then their loved one can talk with Zäme.
 
-Für Angehörige: auswählen, wer dabei ist, und eine passende Stimme wählen.<br>
-For care partners: choose who is present and select a voice.
-
-![Angehörigenübersicht mit auswählbaren Personen-Büchlein und einer Stimmenauswahl / Family overview with selectable profile booklets and a voice choice](docs/images/people-and-voice.png)
-
-### Wie ein Freundschaftsbuch / Like a friendship book
-
-Was einen Menschen ausmacht, und die gemeinsamen Erinnerungen dahinter.<br>
-What makes someone who they are, and the shared memories behind it.
-
-![Persönliches Profil, Wer-bin-ich-Zusammenfassung und Erinnerungsblasen / Personal profile, themed summary and memory bubbles](docs/images/friendship-book.png)
+| | |
+| --- | --- |
+| **1 · Stell mir jemanden vor**<br>Introduce someone.<br>![Startknopf zum Vorstellen / Introduction button](docs/images/flow-01-introduce.png)<br>Den Knopf drücken, um zur Angehörigen-Seite zu kommen.<br>Press the button to open the family page. | **2 · Neue Person erfassen**<br>Create a new profile.<br>![Leeres Profil / Blank profile](docs/images/flow-02-create-person.png)<br>Mit dem Plus ein Profil für den Menschen mit Demenz anlegen.<br>Use the plus button to create a profile for the person living with dementia. |
+| **3 · Erinnerungen hinzufügen**<br>Add shared memories.<br>![Gespeicherte Erinnerungsblase / Saved memory bubble](docs/images/flow-03-memories.png)<br>Etwas schreiben oder einsprechen, dann mit dem Häkchen speichern.<br>Type or record a memory, then save it with the checkmark. | **4 · Zusammenfassung aktualisieren**<br>Refresh the summary.<br>![Bestätigung für Wer bin ich / Summary refresh confirmation](docs/images/flow-04-sync-summary.png)<br>Bei «Wer bin ich?» den Pfeil drücken und «Aktualisieren» bestätigen.<br>Press the refresh arrow beside “Wer bin ich?” and confirm. |
+| **5 · Stimme wählen**<br>Choose a voice.<br>![Männliche oder weibliche Stimme wählen / Voice choice](docs/images/flow-05-voice.png)<br>Zur Übersicht zurückgehen, eine Stimme wählen und auswählen, wer dabei ist.<br>Return to the overview, choose a voice and select who is present. | **6 · Miteinander sprechen**<br>Let the conversation begin.<br>![Gesprächsbutton für Hilde / Talk button for Hilde](docs/images/flow-06-talk.png)<br>Zur Startseite zurückkehren. Einmal «Sprechen» drücken und den Menschen mit Zäme sprechen lassen.<br>Return home. Press “Sprechen” once and let your loved one talk with Zäme. |
 
 *Alle Menschen und Erinnerungen in diesen Screenshots sind erfunden. / All people and memories in these screenshots are fictional.*
 

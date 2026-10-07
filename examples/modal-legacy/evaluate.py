@@ -1,4 +1,4 @@
-"""Run a small, manually reviewed Hearth dialogue set against a deployed backend.
+"""Run the legacy Hearth dialogue set against the standalone Modal prototype.
 
 Usage: python3 evaluate.py https://your-modal-url
 No results are uploaded or saved; review the printed replies against each criterion.

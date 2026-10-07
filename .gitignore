@@ -17,3 +17,13 @@ __pycache__/
 *.pyc
 node_modules/
 dist/
+# Private runtime state and generated test artifacts.
+/agents-config.json
+/agents-budget.json
+*.sqlite
+*.sqlite3
+.pytest_cache/
+.coverage
+htmlcov/
+playwright-report/
+test-results/

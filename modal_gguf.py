@@ -1,4 +1,4 @@
-"""Private, scale-to-zero Modal server for Zäme's verified Q4 GGUF.
+"""Private, scale-to-zero Modal server for a supplied GGUF model.
 
 Upload the model to the private ``zaeme-models`` Volume as ``/qwen.gguf``
 before deploying. The browser must never call this endpoint directly.
@@ -15,7 +15,7 @@ PORT = 8000
 app = modal.App(os.environ.get("ZAEME_MODAL_APP_NAME", "zaeme-qwen"))
 volume = modal.Volume.from_name("zaeme-models", create_if_missing=True)
 
-# Pin the CUDA image after smoke-testing it against the exact IdeaPad file.
+# Test compatibility with your model and pin the CUDA image before deployment.
 image = modal.Image.from_registry(
     "ghcr.io/ggml-org/llama.cpp:server-cuda", add_python="3.12"
 ).entrypoint([])
@@ -40,7 +40,7 @@ class QwenServer:
     @modal.enter()
     def start(self):
         if not MODEL_PATH.is_file():
-            raise FileNotFoundError(f"Upload the verified model to {MODEL_PATH}")
+            raise FileNotFoundError(f"Upload your GGUF model to {MODEL_PATH}")
         subprocess.Popen(
             [
                 "/app/llama-server",

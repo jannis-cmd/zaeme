@@ -1,4 +1,4 @@
-"""Hearth voice API: browser -> Modal/Qwen + ElevenLabs.
+"""Legacy Hearth voice API: browser -> Modal/Qwen + ElevenLabs.
 
 Deploy with ``modal deploy backend.py`` after creating the ``hearth`` secret.
 This backend keeps no conversation database and logs no conversation text.
