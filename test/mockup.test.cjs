@@ -105,6 +105,17 @@ test("first visit asks for information before showing the conversation action", 
   assert.equal(p.stored().daily.used, 0); // A failed preview call is not counted.
 });
 
+test("conversation captions and errors have a separate anchored feedback region", () => {
+  const p = createPage();
+  const feedback = p.window.document.querySelector(".conversation-feedback");
+  assert.equal(p.$("live-transcript").parentElement, feedback);
+  assert.equal(p.$("home-status").parentElement, feedback);
+  assert.equal(p.$("talk-button").nextElementSibling, feedback);
+  const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
+  assert.match(css, /\.conversation-feedback\s*\{[^}]*position:\s*absolute;[^}]*top:\s*100%;/);
+  assert.match(css, /\.home-center\s*\{[^}]*position:\s*relative;/);
+});
+
 test("first family visit starts at people, then voice, then shows the booklet", () => {
   const p = createPage((window) => window.localStorage.removeItem("zaeme.family-tour.v1"));
   assert.equal(p.$("family-tour").hidden, true);

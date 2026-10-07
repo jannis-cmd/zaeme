@@ -329,7 +329,7 @@ body:not(.is-home) { overflow: hidden; }
   display: grid;
   place-items: center;
   padding: 48px 24px 120px;
-  overflow: hidden;
+  overflow: visible;
   background: radial-gradient(
     ellipse 64% 60% at 50% 54%,
     #eaf3f3 0%,
@@ -340,9 +340,22 @@ body:not(.is-home) { overflow: hidden; }
   content: none;
 }
 .home-center {
+  position: relative;
   width: min(100%, 710px);
   text-align: center;
 }
+.conversation-feedback {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  padding: 52px 0 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+.conversation-feedback:has(.live-transcript[hidden]):has(.home-status[hidden]) { display: none; }
 .home-center h1 {
   margin: 0 0 35px;
   color: var(--talk-brown);
@@ -449,7 +462,7 @@ body:not(.is-home) { overflow: hidden; }
 }
 .home-status {
   max-width: 390px;
-  margin: 52px auto 0;
+  margin: 0;
   color: var(--muted);
   font-size: 16px;
   line-height: 1.5;
@@ -463,14 +476,13 @@ body:not(.is-home) { overflow: hidden; }
 .live-transcript {
   max-width: min(540px, 90vw);
   min-height: 1.5em;
-  margin: 52px auto 0;
+  margin: 0;
   color: var(--talk-brown);
   font-size: clamp(18px, 2.6vw, 23px);
   line-height: 1.4;
   text-wrap: balance;
 }
 .live-transcript.is-partial { opacity: .64; }
-.live-transcript:not([hidden]) + .home-status { margin-top: 12px; }
 .voice-section { margin: 48px 0 24px; padding: 28px 32px 32px; border-radius: 16px; background: #e7f0f3; }
 .voice-section h2 { color: var(--ink); }
 .voice-choice {
