@@ -453,7 +453,13 @@ body:not(.is-home) { overflow: hidden; }
   color: var(--muted);
   font-size: 16px;
   line-height: 1.5;
+  padding: 22px 24px;
+  border-radius: 16px;
+  background: #eee5da;
+  text-align: left;
 }
+.home-status strong { display: block; margin-bottom: 8px; color: var(--talk-brown); font-size: 22px; }
+.home-status span { display: block; }
 .live-transcript {
   max-width: min(540px, 90vw);
   min-height: 1.5em;

@@ -556,6 +556,15 @@ function setHomeStatus(message) {
   brandMentions(status);
   status.hidden = !message;
 }
+function setHomeError(message = "Im Moment kann ich leider nicht mit dir sprechen. Versuch es bitte gleich noch einmal.") {
+  const status = $("home-status");
+  const title = document.createElement("strong");
+  title.textContent = "Eine kleine Pause";
+  const detail = document.createElement("span");
+  detail.textContent = message;
+  status.replaceChildren(title, detail);
+  status.hidden = false;
+}
 function setLiveTranscript(text, partial = false) {
   const caption = $("live-transcript");
   caption.textContent = text;
@@ -592,6 +601,7 @@ document.addEventListener("visibilitychange", () => {
 });
 function stopConversation() {
   setLiveTranscript("");
+  setHomeStatus("");
   conversationRequest++;
   conversationConnecting = false;
   if (conversationState) {
@@ -619,7 +629,7 @@ function stopConversation() {
 }
 async function startConversation() {
   if (!navigator.mediaDevices?.getUserMedia || !window.AudioContext || !window.AudioWorkletNode || !window.WebSocket) {
-    setHomeStatus("Live-Gespräche sind auf diesem Gerät oder Browser nicht verfügbar.");
+    setHomeError();
     return;
   }
   const request = ++conversationRequest;
@@ -627,7 +637,7 @@ async function startConversation() {
   conversationDiagnostics = [];
   traceConversation("connecting");
   setLiveTranscript("");
-  setHomeStatus("Verbindung wird aufgebaut …");
+  setHomeStatus("");
   let stream;
   let context;
   let socket;
@@ -702,13 +712,13 @@ async function startConversation() {
       if (["rate_limited", "error", "auth_error", "quota_exceeded", "input_error", "invalid_request", "resource_exhausted"].includes(message.message_type) || message.message_type?.endsWith("_error")) {
         traceConversation("provider-error", { type: message.message_type });
         stopConversation();
-        setHomeStatus("Die Live-Spracherkennung ist gerade nicht verfügbar. Bitte später erneut versuchen.");
+        setHomeError();
       }
     });
     socket.addEventListener("close", () => {
       if (!session.discarded && request === conversationRequest) {
         stopConversation();
-        setHomeStatus("Die Live-Verbindung wurde unterbrochen. Bitte erneut starten.");
+        setHomeError();
       }
     });
     source.connect(worklet);
@@ -719,27 +729,25 @@ async function startConversation() {
       if (now - session.lastAudioAt > 8000) {
         traceConversation("audio-stalled");
         stopConversation();
-        setHomeStatus("Das Mikrofon wurde unterbrochen. Bitte starten Sie das Gespräch erneut.");
+        setHomeError();
         return;
       }
     }, 250);
     session.timeout = setTimeout(() => {
       if (conversationState === session) {
         stopConversation();
-        setHomeStatus("Das Gespräch ist nach zehn Minuten beendet. Sie können es erneut starten.");
       }
     }, 10 * 60 * 1000);
     $("talk-button").classList.add("is-recording");
     $("talk-button").textContent = "Gespräch beenden";
     $("talk-button").setAttribute("aria-label", "Gespräch beenden");
-    setHomeStatus("Ich höre zu …");
     traceConversation("listening");
   } catch (error) {
     socket?.close();
     context?.close().catch(() => {});
     if (request !== conversationRequest) return;
     stopConversation();
-    setHomeStatus(error.message || "Der Gesprächsdienst ist gerade nicht erreichbar.");
+    setHomeError();
   } finally {
     if (request === conversationRequest) conversationConnecting = false;
     if (request !== conversationRequest && !conversationState) {
@@ -754,7 +762,7 @@ async function runConversation(heard, request, session) {
   session.processing = true;
   session.stream.getAudioTracks().forEach((track) => { track.enabled = false; });
   setLiveTranscript(heard);
-  setHomeStatus("Ich überlege kurz …");
+  setHomeStatus("");
   try {
     const people = selectedPeople();
     if (!people.length) { stopConversation(); return; }
@@ -790,7 +798,7 @@ async function runConversation(heard, request, session) {
     conversationMessages = [...messages, { role: "assistant", content: answer }].slice(-8);
     state.daily = { date: today(), used: dailyUsed() + 1 };
     persist();
-    setHomeStatus(answer);
+    setLiveTranscript(answer);
     const speechResponse = await fetch("api/speak", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -811,13 +819,12 @@ async function runConversation(heard, request, session) {
       if (!session.discarded && request === conversationRequest) {
         if (dailyUsed() >= LIMITS.conversationsPerDay) {
           stopConversation();
-          setHomeStatus(`Das Gastlimit von ${LIMITS.conversationsPerDay} Gesprächsbeiträgen für heute ist erreicht.`);
+          setHomeError("Für heute brauchen wir eine Pause. Morgen können wir wieder miteinander sprechen.");
           return;
         }
         session.processing = false;
         session.lastAudioAt = performance.now();
         session.stream.getAudioTracks().forEach((track) => { track.enabled = true; });
-        setHomeStatus("Ich höre zu …");
         traceConversation("listening");
       }
     }, { once: true });
@@ -825,7 +832,7 @@ async function runConversation(heard, request, session) {
     traceConversation("reply-playing");
   } catch (error) {
     if (request === conversationRequest) {
-      setHomeStatus(error.message || "Bitte versuchen Sie es erneut.");
+      setHomeError();
       session.processing = false;
       session.lastAudioAt = performance.now();
       session.stream.getAudioTracks().forEach((track) => { track.enabled = true; });
@@ -1460,7 +1467,6 @@ $("talk-button").addEventListener("click", () => {
   }
   if (conversationState || conversationConnecting) {
     stopConversation();
-    setHomeStatus("Gespräch beendet.");
     return;
   }
   if (replyAudio) {
@@ -1468,9 +1474,7 @@ $("talk-button").addEventListener("click", () => {
     replyAudio = null;
   }
   if (dailyUsed() >= LIMITS.conversationsPerDay) {
-    setHomeStatus(
-      `Das Gastlimit von ${LIMITS.conversationsPerDay} Gesprächen für heute ist erreicht.`,
-    );
+    setHomeError("Für heute brauchen wir eine Pause. Morgen können wir wieder miteinander sprechen.");
     return;
   }
   startConversation();

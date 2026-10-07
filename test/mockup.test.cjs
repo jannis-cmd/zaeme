@@ -19,7 +19,7 @@ test("overview orders people, add action, then voice on every screen size", () =
   assert.equal(d.querySelector(".page-head #new-person-button"), null);
 });
 
-function createPage(setup = () => {}) {
+function createPage(setup = () => {}, extraSource = "") {
   const dom = new JSDOM(html, {
     url: "https://example.test/",
     runScripts: "dangerously",
@@ -41,7 +41,7 @@ function createPage(setup = () => {}) {
     dialog.dispatchEvent(new window.Event("close"));
   };
   setup(window);
-  window.eval(js);
+  window.eval(js + "\n" + extraSource);
   const $ = (id) => window.document.getElementById(id);
   const click = (id) => $(id).click();
   const input = (id, value) => {
@@ -99,7 +99,7 @@ test("first visit asks for information before showing the conversation action", 
   assert.equal(p.$("home-view").getAttribute("aria-labelledby"), "home-title");
   assert.equal(p.$("talk-button").textContent.trim(), "Sprechen");
   p.click("talk-button");
-  assert.match(p.$("home-status").textContent, /Live-Gespräche/);
+  assert.match(p.$("home-status").textContent, /Eine kleine Pause/);
   assert.equal(p.$("home-status").hidden, false);
   assert.equal(p.dialog.open, false);
   assert.equal(p.stored().daily.used, 0); // A failed preview call is not counted.
@@ -539,13 +539,14 @@ test("live turns use native VAD finals, stream silence and resume after replies"
   assert.equal(p.$("live-transcript").textContent, "Grüe");
   socket.emit("message", { data: JSON.stringify({ message_type: "committed_transcript", text: "Grüezi" }) });
   await new Promise(setImmediate);
-  assert.equal(p.$("live-transcript").textContent, "Grüezi");
+  assert.equal(p.$("live-transcript").textContent, "Guten Tag.");
   assert.deepEqual(calls.map((call) => call.url), ["api/status", "api/scribe-token", "api/chat", "api/speak"]);
   assert.equal(JSON.parse(calls.at(-1).options.body).voice, "female");
-  assert.equal(p.$("home-status").textContent, "Guten Tag.");
+  assert.equal(p.$("live-transcript").textContent, "Guten Tag.");
+  assert.equal(p.$("home-status").hidden, true);
   assert.equal(p.stored().daily.used, 1);
   playback.ended();
-  assert.equal(p.$("home-status").textContent, "Ich höre zu …");
+  assert.equal(p.$("home-status").hidden, true);
   socket.emit("message", { data: JSON.stringify({ message_type: "partial_transcript", text: "Was muss ich heute für Tabletten nehmen?" }) });
   for (clock = 250; clock <= 7250; clock += 250) {
     worklet.port.onmessage({ data: new ArrayBuffer(4) });
@@ -565,7 +566,7 @@ test("live turns use native VAD finals, stream silence and resume after replies"
   playback.ended();
   clock += 9000;
   silenceCheck();
-  assert.match(p.$("home-status").textContent, /Mikrofon wurde unterbrochen/);
+  assert.match(p.$("home-status").textContent, /Eine kleine Pause/);
   assert.equal(stopped, 1);
   assert.equal(silenceCheck, null);
   p.click("talk-button");
@@ -575,7 +576,44 @@ test("live turns use native VAD finals, stream silence and resume after replies"
   p.click("talk-button");
   assert.equal(p.$("live-transcript").textContent, "");
   assert.equal(p.$("live-transcript").hidden, true);
-  assert.equal(p.$("home-status").textContent, "Gespräch beendet.");
+  assert.equal(p.$("home-status").hidden, true);
+});
+
+test("agent lifecycle is quiet, transcripts remain, and only errors show the friendly notice", async () => {
+  let callbacks;
+  const agentSource = fs.readFileSync(path.join(root, "voice-agent.js"), "utf8").replace("import { Conversation } from '@elevenlabs/client';", "");
+  const record = { version: 3, selectedIds: ["h"], people: [{ id: "h", name: "Hilde", notes: [] }] };
+  const p = createPage((window) => {
+    window.localStorage.setItem("hearth.guest.v3", JSON.stringify(record));
+    window.fetch = async () => ({ ok: true, json: async () => ({ backend: "agents", token: "test", max_seconds: 600 }) });
+    window.Conversation = { startSession: async (options) => {
+      callbacks = options;
+      return { getId: () => "synthetic", endSession: async () => {} };
+    } };
+    window.setTimeout = () => 0;
+  }, agentSource);
+  p.click("talk-button");
+  assert.equal(p.$("home-status").hidden, true);
+  await new Promise(setImmediate);
+  for (const mode of ["listening", "speaking"]) {
+    callbacks.onModeChange({ mode });
+    assert.equal(p.$("home-status").hidden, true);
+  }
+  callbacks.onMessage({ message: "Grüezi Hilde.", source: "ai" });
+  assert.equal(p.$("live-transcript").textContent, "Grüezi Hilde.");
+  p.click("talk-button");
+  assert.equal(p.$("home-status").hidden, true);
+  assert.equal(p.$("live-transcript").hidden, true);
+  p.click("talk-button");
+  await new Promise(setImmediate);
+  callbacks.onDisconnect();
+  assert.equal(p.$("home-status").hidden, true);
+  p.click("talk-button");
+  await new Promise(setImmediate);
+  callbacks.onError();
+  assert.equal(p.$("home-status").hidden, false);
+  assert.equal(p.$("home-status").querySelector("strong").textContent, "Eine kleine Pause");
+  assert.match(p.$("home-status").textContent, /Versuch es bitte gleich noch einmal/);
 });
 
 test("selected person stays first and the limit message replaces the add button", () => {

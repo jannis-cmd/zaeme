@@ -39,7 +39,7 @@ startConversation = async function () {
   const request = ++conversationRequest;
   conversationConnecting = true;
   setLiveTranscript('');
-  setHomeStatus('Verbindung wird aufgebaut …');
+  setHomeStatus('');
   $('talk-button').innerHTML = 'Gespräch beenden';
   let config;
   try {
@@ -77,17 +77,15 @@ startConversation = async function () {
       onModeChange: ({ mode }) => {
         if (request !== conversationRequest) return;
         $('talk-button').classList.toggle('is-recording', mode === 'listening');
-        setHomeStatus(mode === 'speaking' ? 'Ich spreche.' : 'Ich höre zu.');
       },
       onDisconnect: () => {
         if (request !== conversationRequest) return;
         stopConversation();
-        setHomeStatus('Gespräch beendet.');
       },
       onError: () => {
         if (request !== conversationRequest) return;
         stopConversation();
-        setHomeStatus('Die Verbindung wurde unterbrochen. Du kannst das Gespräch neu starten.');
+        setHomeError();
       },
     });
     if (request !== conversationRequest) {
@@ -100,12 +98,11 @@ startConversation = async function () {
     agentReservation = config.reservation;
     conversationState = { backend: 'agents' };
     conversationConnecting = false;
-    setHomeStatus('Ich höre zu.');
     $('talk-button').classList.add('is-recording');
-    agentTimer = setTimeout(() => { stopConversation(); setHomeStatus('Gespräch beendet.'); }, config.max_seconds * 1000);
+    agentTimer = setTimeout(() => { stopConversation(); }, config.max_seconds * 1000);
   } catch (error) {
     if (request !== conversationRequest) return;
     stopConversation();
-    setHomeStatus(error.message || 'Das Gespräch konnte nicht gestartet werden.');
+    setHomeError();
   }
 };
