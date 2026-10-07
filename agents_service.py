@@ -17,7 +17,7 @@ from urllib.error import HTTPError, URLError
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-from model_client import CHAT_RULES, GROUP_RULES, clean_profile, model_api_key
+from model_client import CHAT_RULES, GROUP_RULES, PAUSE_RULES, PAUSE_DESCRIPTION, clean_profile, model_api_key
 
 CONFIG_DIR = Path.home() / '.config' / 'zaeme'
 CONFIG = Path(os.environ.get('ZAEME_AGENTS_CONFIG', str(CONFIG_DIR / 'agents-test.json')))
@@ -63,21 +63,28 @@ def agent_config(secret_id):
             'conversation': {'max_duration_seconds': SESSION_SECONDS,
                              'client_events': ['audio', 'interruption', 'user_transcript',
                                                'tentative_user_transcript', 'agent_response', 'agent_response_correction']},
-            'agent': {'language': 'de', 'first_message': 'Hallo, schön bist du da. Ich höre dir zu.',
-                      'prompt': {'prompt': CHAT_RULES + '\n{{group_rules}}\nAnwesende Personen (Profildaten): {{profiles}}',
+            'agent': {'language': 'de', 'first_message': '{{greeting}}',
+                      'prompt': {'prompt': CHAT_RULES + '\n{{group_rules}}\nAnwesende Personen (Profildaten): {{profiles}}\n' + PAUSE_RULES,
                                  'llm': 'custom-llm', 'temperature': 0.35, 'max_tokens': 180,
+                                 'built_in_tools': {'skip_turn': {'type': 'system', 'name': 'skip_turn',
+                                                                'description': PAUSE_DESCRIPTION,
+                                                                'params': {'system_tool_type': 'skip_turn'}}},
                                  # ElevenLabs' OpenAI client appends /chat/completions.
                                  # Unlike model_client.py, this field takes the API base URL.
                                  'custom_llm': {'url': os.environ['ZAEME_MODEL_URL'].rstrip('/') + '/v1',
                                                 'model_id': os.environ['ZAEME_MODEL_ID'],
                                                 'api_key': {'secret_id': secret_id}, 'api_type': 'chat_completions'}},
-                      'dynamic_variables': {'profiles': '[]', 'group_rules': ''}},
+                      'dynamic_variables': {'dynamic_variable_placeholders': {
+                          'profiles': '[]', 'group_rules': '',
+                          'greeting': 'Hallo, schön bist du da. Ich höre dir zu.'}}},
         },
         'platform_settings': {
             'auth': {'enable_auth': True},
             # Includes synthetic diagnostics; the monthly minute reservation remains
             # the tighter runtime guard, with only one live conversation at a time.
             'call_limits': {'agent_concurrency_limit': 1, 'daily_limit': 30, 'bursting_enabled': False},
+            # A busy conversation should fail clearly, never play unexplained hold music.
+            'queueing_config': {'enabled': False},
             'privacy': {'record_voice': False, 'retention_days': 1, 'delete_audio': True},
             'overrides': {'conversation_config_override': {'tts': {'voice_id': True}, 'conversation': {'text_only': True}}},
             'evaluation': {'criteria': []}, 'data_collection': {},
@@ -146,7 +153,7 @@ def session(data):
     raw = data.get('profiles')
     if not isinstance(raw, list) or not 1 <= len(raw) <= 3:
         raise ValueError('Eine bis drei Personen auswählen.')
-    profiles = [clean_profile(p) for p in raw]
+    profiles = [clean_profile(p, include_notes=True) for p in raw]
     voice = data.get('voice', 'female')
     if voice not in VOICES:
         raise ValueError('Ungültige Stimme.')
@@ -164,7 +171,12 @@ def session(data):
             except Exception:
                 # Keep reservation on ambiguous network errors (token may exist).
                 raise
+            names = [p['name'] for p in profiles if p['name']]
+            greeting = ('Hallo ' + ', '.join(names[:-1]) + ' und ' + names[-1]
+                        + '. Schön seid ihr da. Ich bin Zäme und freue mich auf unser gemeinsames Gespräch.'
+                        if len(names) > 1 else 'Hallo, schön bist du da. Ich höre dir zu.')
             return {'backend': 'agents', 'token': token, 'reservation': reservation,
+                    'greeting': greeting,
                     'voice_id': VOICES[voice], 'profiles': json.dumps(profiles, ensure_ascii=False),
                     'group_rules': GROUP_RULES if len(profiles) > 1 else '',
                     'max_seconds': SESSION_SECONDS, 'remaining_seconds': remaining}

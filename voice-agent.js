@@ -38,6 +38,7 @@ stopConversation = function () {
 startConversation = async function () {
   const request = ++conversationRequest;
   conversationConnecting = true;
+  setTalkState('thinking');
   setLiveTranscript('');
   setHomeStatus('');
   $('talk-button').innerHTML = 'Gespräch beenden';
@@ -57,14 +58,16 @@ startConversation = async function () {
       return;
     }
     document.documentElement.dataset.voiceBackend = 'agents';
+    let receivedMode = false;
     const agent = await Conversation.startSession({
       conversationToken: config.token,
       connectionType: 'webrtc',
-      dynamicVariables: { profiles: config.profiles, group_rules: config.group_rules },
+      dynamicVariables: { profiles: config.profiles, group_rules: config.group_rules, greeting: config.greeting },
       overrides: { tts: { voiceId: config.voice_id } },
       onIncomingEvent: (event) => {
         if (request !== conversationRequest) return;
         if (event.type === 'tentative_user_transcript') {
+          setTalkState('idle');
           setLiveTranscript(event.tentative_user_transcription_event?.user_transcript || '', true);
         }
       },
@@ -72,10 +75,13 @@ startConversation = async function () {
         if (request !== conversationRequest) return;
         setLiveTranscript(message || '');
         const role = source === 'user' ? 'user' : 'assistant';
+        if (role === 'user') setTalkState('thinking');
         if (message) conversationMessages = [...conversationMessages, { role, content: message }].slice(-8);
       },
       onModeChange: ({ mode }) => {
         if (request !== conversationRequest) return;
+        receivedMode = true;
+        setTalkState(mode === 'speaking' ? 'talking' : 'idle');
         $('talk-button').classList.toggle('is-recording', mode === 'listening');
       },
       onDisconnect: () => {
@@ -98,6 +104,7 @@ startConversation = async function () {
     agentReservation = config.reservation;
     conversationState = { backend: 'agents' };
     conversationConnecting = false;
+    if (!receivedMode) setTalkState('idle');
     $('talk-button').classList.add('is-recording');
     agentTimer = setTimeout(() => { stopConversation(); }, config.max_seconds * 1000);
   } catch (error) {

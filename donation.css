@@ -1,35 +1,35 @@
-/* Donation-only styling: intentionally independent of the conversation UI. */
+/* Donations use the same paper, ink and action colors as the family pages. */
 .donate-view { max-width: 1120px; margin-inline: auto; }
-.donate-view .donation-intro { max-width: 800px; margin-bottom: 52px; }
+.donate-view .donation-intro { max-width: 760px; margin-bottom: 40px; }
 .donate-view h1 { max-width: none; text-wrap: balance; }
-.donation-intro p { max-width: 72ch; margin: 22px 0 0; color: var(--muted); font-size: 19px; line-height: 1.7; }
-.donation-support { display: grid; grid-template-columns: 1fr 1.05fr; gap: clamp(32px, 6vw, 76px); align-items: center; }
+.donation-intro p { max-width: 72ch; margin: 22px 0 0; color: var(--muted); font-size: 18px; line-height: 1.7; }
+.donation-support { display: grid; grid-template-columns: 1fr 1.05fr; gap: clamp(32px, 6vw, 76px); align-items: start; }
 .donate-view h2 { margin: 0 0 14px; font-size: 28px; line-height: 1.2; font-weight: 700; letter-spacing: -.025em; }
 .donation-appeal > p:not(.donation-caption), .donation-partners > p, .donation-technical > p:not(.donation-caption) { margin: 0; color: var(--muted); font-size: 17px; line-height: 1.7; }
 .donation-appeal .button { margin-top: 26px; gap: 14px; min-height: 54px; }
-.donation-appeal .button:disabled { opacity: .65; cursor: not-allowed; }
-.donate-view .donation-caption { margin: 12px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
-.donation-budget { margin: 0; padding: 28px; background: #fdfcf9; border-radius: 16px; }
+.donation-appeal .button:disabled { background: var(--sand); color: var(--muted); cursor: not-allowed; }
+.donate-view .donation-caption { margin: 12px 0 0; color: var(--muted); font-size: 14px; line-height: 1.6; }
+.donation-budget { margin: 0; padding: 28px; background: var(--paper); border-radius: 16px; }
 .donation-budget figcaption { margin-bottom: 22px; font-size: 20px; font-weight: 700; letter-spacing: -.02em; }
-.donation-totals { display: grid; gap: 10px; margin: 0; }
-.donation-total { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 20px; border-radius: 12px; }
-.donation-total-in { background: #dcece2; color: #284d3e; }
-.donation-total-out { background: #ebe3ee; color: #574362; }
+.donation-totals { display: grid; gap: 0; margin: 0; }
+.donation-total { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding: 18px 0; border-radius: 0; }
+.donation-total-in { color: var(--teal-dark); border-bottom: 1px solid var(--line); }
+.donation-total-out { color: var(--ink); }
 .donation-total dt { font-size: 15px; }
 .donation-total dd { margin: 0; font-size: 23px; line-height: 1.2; font-weight: 700; font-variant-numeric: tabular-nums; }
 .donation-costs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0 20px; }
 .donation-costs > div { min-width: 0; }
 .donation-costs dt { display: flex; gap: 7px; align-items: center; font-size: 13px; color: var(--muted); }
 .donation-costs dt i { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; }
-.cost-hosting { background: #a3c6d2; }
-.cost-ai { background: #c4abd1; }
-.cost-speech { background: #d5b39b; }
+.cost-hosting { background: var(--teal-dark); }
+.cost-ai { background: var(--teal-dark); }
+.cost-speech { background: var(--teal-dark); }
 .donation-costs dd { margin: 7px 0 0 15px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .donation-comparison { margin-top: 20px; }
 .donation-comparison > div { height: 8px; background: #f0eee9; border-radius: 8px; margin-top: 8px; overflow: hidden; }
-.donation-comparison i { display: block; height: 100%; width: 0; background: #a3c8b3; border-radius: inherit; }
-.donation-comparison > div + div i { background: #c6b3d0; }
-.donation-partners { margin-top: 68px; padding-top: 34px; border-top: 1px solid var(--line); }
+.donation-comparison i { display: block; height: 100%; width: 0; background: var(--teal-dark); border-radius: inherit; }
+.donation-comparison > div + div i { background: var(--talk-brown); }
+.donation-partners { margin-top: 56px; padding-top: 34px; border-top: 1px solid var(--line); }
 .donation-partner-logos { display: flex; align-items: center; gap: clamp(36px, 8vw, 90px); margin: 26px 0 0; }
 .donation-partner-logos a { display: flex; align-items: center; min-height: 64px; text-decoration: none; transition: transform 180ms ease-out; }
 .donation-partner-logos a:hover { transform: translateY(-3px); }

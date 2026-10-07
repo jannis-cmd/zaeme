@@ -9,15 +9,15 @@
       content="Zäme: ein ruhiger Gesprächsmoment, persönlich vorbereitet von Angehörigen."
     />
     <title>Zäme · Ein Gesprächsmoment</title>
-    <link rel="stylesheet" href="styles.css?v=54" />
-    <link rel="stylesheet" href="donation.css?v=1" />
-    <script src="app.js?v=53" defer></script>
+    <link rel="stylesheet" href="styles.css?v=60" />
+    <link rel="stylesheet" href="donation.css?v=2" />
+    <script src="app.js?v=58" defer></script>
     <script src="donation.js?v=2" defer></script>
   </head>
   <body class="is-home">
     <header class="home-header"><div class="header-inner">
       <a class="brand" href="#start" data-view="home" aria-label="Zäme, zur Startseite"><span class="wordmark" aria-hidden="true"><span>Z</span><span>ä</span><span>m</span><span>e</span></span></a>
-      <button class="home-family-link" type="button" data-view="library">Für Angehörige</button>
+      <button class="home-family-link" type="button" data-view="library">Angehörige</button>
     </div></header>
     <div id="family-overlay" class="family-overlay" role="dialog" aria-modal="true" aria-label="Für Angehörige und Spenden" hidden>
     <div id="family-panel" class="family-panel">
@@ -99,13 +99,14 @@
         <div class="person-grid" id="person-grid"></div>
         <div class="person-add-row">
           <button
-            class="icon-button add-person-button"
+            class="button button-primary add-person-button"
             id="new-person-button"
             type="button"
             aria-label="Person hinzufügen"
             title="Person hinzufügen"
           >
             <span class="icon icon-plus" aria-hidden="true"></span>
+            Person hinzufügen
           </button>
         </div>
         <section class="voice-section" aria-labelledby="voice-title">

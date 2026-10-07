@@ -13,10 +13,14 @@ class AgentsTest(unittest.TestCase):
             config = service.agent_config('secret-test')
         self.assertTrue(config['platform_settings']['auth']['enable_auth'])
         self.assertFalse(config['platform_settings']['call_limits']['bursting_enabled'])
+        self.assertFalse(config['platform_settings']['queueing_config']['enabled'])
         self.assertEqual(config['conversation_config']['agent']['prompt']['custom_llm']['model_id'], 'same-model')
         self.assertEqual(config['conversation_config']['agent']['prompt']['custom_llm']['url'], 'https://example.com/openai/v1')
         self.assertEqual(config['conversation_config']['conversation']['max_duration_seconds'], 600)
         self.assertTrue(config['platform_settings']['overrides']['conversation_config_override']['tts']['voice_id'])
+        self.assertIn('greeting', config['conversation_config']['agent']['dynamic_variables']['dynamic_variable_placeholders'])
+        self.assertEqual(config['conversation_config']['turn']['turn_timeout'], 30)
+        self.assertEqual(config['conversation_config']['turn']['turn_eagerness'], 'patient')
 
     def test_low_allowance_falls_back_before_requesting_token(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -35,6 +39,22 @@ class AgentsTest(unittest.TestCase):
     def test_bad_voice_rejected(self):
         with self.assertRaises(ValueError):
             service.session({'profiles': [{'name': 'Test'}], 'voice': 'arbitrary-id'})
+
+    def test_group_session_carries_separate_memories_rules_and_greeting(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config = Path(folder) / 'config.json'
+            config.write_text(json.dumps({'agent_id': 'test'}))
+            ledger = Path(folder) / 'ledger.json'
+            with patch.object(service, 'CONFIG', config), patch.object(service, 'LEDGER', ledger), patch.object(service, 'budget', return_value=({'reservations': {}}, 1200)), patch.object(service, 'api', return_value={'token': 'synthetic'}):
+                result = service.session({'profiles': [
+                    {'name': 'Hilde', 'guidance': 'Mag Blumen.', 'notes': [{'text': 'Mag gelbe Tulpen.'}]},
+                    {'name': 'Ruth', 'guidance': 'Mag Musik.', 'notes': [{'text': 'Mag Jazz.'}]},
+                ]})
+        profiles = json.loads(result['profiles'])
+        self.assertEqual(profiles[0]['notes'], ['Mag gelbe Tulpen.'])
+        self.assertEqual(profiles[1]['notes'], ['Mag Jazz.'])
+        self.assertEqual(result['group_rules'], service.GROUP_RULES)
+        self.assertIn('Hallo Hilde und Ruth.', result['greeting'])
 
     def test_calendar_period_not_thirty_days(self):
         from datetime import datetime, timezone

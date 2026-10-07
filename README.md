@@ -47,8 +47,8 @@ Press the button to open the family page.
 
 ### 2 · Neue Person erfassen / Create a new profile
 
-Mit dem Plus ein Profil für den Menschen mit Demenz anlegen.<br>
-Use the plus button to create a profile for the person living with dementia.
+Mit «Person hinzufügen» ein Freundschaftsbuch für den Menschen mit Demenz anlegen.<br>
+Use “Person hinzufügen” to create a friendship book for the person living with dementia.
 
 ![Leeres Profil / Blank profile](docs/images/flow-02-create-person.png)
 
@@ -68,8 +68,8 @@ Press the refresh arrow beside “Wer bin ich?” and confirm.
 
 ### 5 · Stimme wählen / Choose a voice
 
-Zur Übersicht zurückgehen, eine Stimme wählen und auswählen, wer dabei ist.<br>
-Return to the overview, choose a voice and select who is present.
+Zur Übersicht zurückgehen, eine Stimme wählen und die Bücher der anwesenden Menschen auswählen. Ein Häkchen im Kreis oben links zeigt die Auswahl.<br>
+Return to the overview, choose a voice and select who is present. A circled check at the top left of each book shows the selection.
 
 ![Männliche oder weibliche Stimme wählen / Voice choice](docs/images/flow-05-voice.png)
 

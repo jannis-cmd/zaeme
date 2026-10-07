@@ -27,3 +27,6 @@ dist/
 htmlcov/
 playwright-report/
 test-results/
+
+# Local visual review captures.
+/.impeccable/review/

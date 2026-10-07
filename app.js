@@ -81,8 +81,9 @@ function loadState() {
             ),
         )
         .slice(0, LIMITS.people)
-        .map((person) => ({
+        .map((person, index) => ({
           ...person,
+          bookCover: [0, 1, 2].includes(person.bookCover) ? person.bookCover : index,
           notes: Array.isArray(person.notes)
             ? person.notes.slice(-LIMITS.notes)
             : [],
@@ -199,11 +200,11 @@ function showTourStep(instant = false) {
   tourAnimations = [];
   document.querySelectorAll(".tour-target").forEach((element) => element.classList.remove("tour-target"));
   const steps = [
-    ["Personen erfassen", "Hier erfasst ihr euren Menschen mit Demenz – nicht euch selbst als Angehörige. Mit dem Stift bearbeitet ihr Profile. Tippt an, wer beim Gespräch dabei ist. Ausgewählte Menschen sind grün markiert.", "#library-view .page-head"],
-    ["Stimme", "Hier kannst du wählen, ob Zäme mit einer männlichen oder weiblichen Stimme sprechen soll.", ".voice-section"],
-    ["Person bearbeiten", "Zäme begleitet Menschen mit Demenz im Gespräch. Als Angehörige füllt ihr dieses Profil wie ein Freundschaftsbuch: mit Namen, Vorlieben und gemeinsamen Erinnerungen.", ".editor-heading"],
-    ["Wer bin ich?", "Was macht euren Menschen aus? Hier fasst Zäme eure Erinnerungen zusammen, die ihr unten erfasst habt. Die Zusammenfassung muss jeweils mit dem Pfeil-Symbol rechts aktualisiert werden, wenn ihr neue Erinnerungen hinzufügt.", ".compiled-title"],
-    ["Gemeinsame Erinnerungen", "Ein Ausflug, ein Lieblingslied oder ein vertrautes Ritual: Schreibt auf, was euch verbindet, oder erzählt es ins Mikrofon. Gespeicherte Erinnerungen könnt ihr antippen und mit dem Stift bearbeiten. Danach geht’s zurück zur Personenübersicht. Mit dem Kreuz oben rechts schliesst ihr das Fenster und kommt zurück zum Gespräch.", ".notes-panel"],
+    ["Personen erfassen", "Hier erfasst ihr euren Menschen mit Demenz – nicht euch selbst als Angehörige. Mit «Person hinzufügen» legt ihr ein Freundschaftsbuch an. Der Stift oben rechts öffnet es. Tippt auf das Buch, um auszuwählen, wer beim Gespräch dabei ist. Ausgewählte Menschen erkennt ihr am Häkchen im Kreis oben links.", "#library-view .page-head"],
+    ["Stimme", "Hier wählt ihr, ob Zäme mit einer weiblichen oder männlichen Stimme sprechen soll. Die gewählte Stimme gilt für das Gespräch.", ".voice-section"],
+    ["Person bearbeiten", "Als Angehörige füllt ihr dieses Profil wie ein Freundschaftsbuch. Auf der ersten Seite stehen Name, Sprache, Ansprache und Hinweise für gute Gespräche. Eure Angaben werden automatisch auf diesem Gerät gespeichert. Auf der zweiten Seite sammelt ihr gemeinsame Erinnerungen.", ".editor-heading"],
+    ["Gemeinsame Erinnerungen", "Ein Ausflug, ein Lieblingslied oder ein vertrautes Ritual: Schreibt auf, was euch verbindet, oder sprecht es mit dem Mikrofon ein. Mit dem Häkchen speichert ihr die Erinnerung. Gespeicherte Erinnerungen könnt ihr antippen, mit dem Stift bearbeiten oder mit dem Papierkorb löschen.", ".notes-panel"],
+    ["Wer bin ich?", "Was macht euren Menschen aus? Hier fasst Zäme eure gespeicherten Erinnerungen zusammen. Mit dem Pfeil-Symbol rechts aktualisiert ihr die Zusammenfassung nach neuen oder geänderten Erinnerungen. Danach legt ihr euer eigenes Buch an und wählt, wer dabei ist. Das Kreuz oben rechts führt zum Gespräch. Dort startet und beendet ihr es mit dem grossen Knopf.", ".compiled-title"],
   ];
   showView(tourStep < 2 ? "library" : "editor", true);
   $("editor-view").querySelector(".editor-grid").inert = true;
@@ -222,9 +223,9 @@ function showTourStep(instant = false) {
   target.classList.add("tour-target");
   let startHighlights = () => {};
   if (!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
-    const highlights = tourStep === 3
+    const highlights = tourStep === 4
       ? [document.querySelector(".compiled-title h3"), $("compile-button")]
-      : tourStep === 4 ? [$("notes-heading"), $("note-form")]
+      : tourStep === 3 ? [$("notes-heading"), $("note-form")]
       : tourStep === 0 ? [$("library-title"), $("new-person-button")]
       : tourStep === 1 ? [$("voice-title"), ...document.querySelectorAll(".voice-choice-options label")] : [];
     const playHighlights = () => {
@@ -313,7 +314,7 @@ function alignTourSection(smooth = false, onArrive = () => {}) {
   const target = document.querySelector(".tour-target");
   if (tourStep < 0 || !target) return;
   // Measure the whole subject, not just the heading that receives the pop.
-  const selectors = ["#library-view .page-head, #person-grid, .person-add-row", ".voice-section", ".editor-heading, .profile-panel", ".compiled-card", ".notes-panel"];
+  const selectors = ["#library-view .page-head, #person-grid, .person-add-row", ".voice-section", ".editor-heading, .profile-panel", ".notes-panel", ".compiled-card"];
   const rects = [...document.querySelectorAll(selectors[tourStep])]
     .map(element => element.getBoundingClientRect()).filter(rect => rect.height > 0);
   const section = { top: Math.min(...rects.map(rect => rect.top)), bottom: Math.max(...rects.map(rect => rect.bottom)) };
@@ -360,7 +361,7 @@ function animateBook(opening, source, navigate, targetSelector, complete = () =>
   paper.className = "book-transition-paper";
   Object.assign(paper.style, { left: `${cardBounds.left - viewport.left}px`, top: `${cardBounds.top - viewport.top}px`, width: `${cardBounds.width}px`, height: `${cardBounds.height}px` });
   const lid = cover || target.cloneNode(true);
-  lid.className = "book-transition-cover";
+  lid.className = "book-transition-cover person-card";
   lid.style.backgroundColor = opening ? coverColor : getComputedStyle(target).backgroundColor;
   lid.removeAttribute("id");
   lid.querySelectorAll("[id]").forEach(element => element.removeAttribute("id"));
@@ -556,6 +557,11 @@ function setHomeStatus(message) {
   brandMentions(status);
   status.hidden = !message;
 }
+function setTalkState(state = "idle") {
+  const button = $("talk-button");
+  button.dataset.state = ["idle", "thinking", "talking"].includes(state) ? state : "idle";
+  button.setAttribute("aria-description", state === "thinking" ? "Ich denke kurz nach." : state === "talking" ? "Ich spreche gerade." : "");
+}
 function setHomeError(message = "Im Moment kann ich leider nicht mit dir sprechen. Versuch es bitte gleich noch einmal.") {
   const status = $("home-status");
   const title = document.createElement("strong");
@@ -572,6 +578,7 @@ function setLiveTranscript(text, partial = false) {
   caption.classList.toggle("is-partial", partial);
 }
 function renderHome() {
+  if (!conversationState && !conversationConnecting) setTalkState("idle");
   const people = selectedPeople();
   const names = new Intl.ListFormat("de-CH", { style: "long", type: "conjunction" }).format(people.map((person) => person.name));
   document.body.classList.toggle("needs-profile", !people.length);
@@ -625,6 +632,7 @@ function stopConversation() {
   $("talk-button").disabled = false;
   $("talk-button").removeAttribute("aria-busy");
   $("talk-button").classList.remove("is-recording");
+  setTalkState("idle");
   renderHome();
 }
 async function startConversation() {
@@ -634,6 +642,7 @@ async function startConversation() {
   }
   const request = ++conversationRequest;
   conversationConnecting = true;
+  setTalkState("thinking");
   conversationDiagnostics = [];
   traceConversation("connecting");
   setLiveTranscript("");
@@ -739,6 +748,7 @@ async function startConversation() {
       }
     }, 10 * 60 * 1000);
     $("talk-button").classList.add("is-recording");
+    setTalkState("idle");
     $("talk-button").textContent = "Gespräch beenden";
     $("talk-button").setAttribute("aria-label", "Gespräch beenden");
     traceConversation("listening");
@@ -760,6 +770,7 @@ async function startConversation() {
 }
 async function runConversation(heard, request, session) {
   session.processing = true;
+  setTalkState("thinking");
   session.stream.getAudioTracks().forEach((track) => { track.enabled = false; });
   setLiveTranscript(heard);
   setHomeStatus("");
@@ -784,6 +795,7 @@ async function runConversation(heard, request, session) {
           address: person.address,
           guidance: person.guidance,
           compiled: person.compiled,
+          notes: person.notes.map((note) => note.text),
         })),
         messages,
       }),
@@ -791,6 +803,17 @@ async function runConversation(heard, request, session) {
     });
     const chatResult = await chatResponse.json().catch(() => ({}));
     if (!chatResponse.ok) throw new Error(chatResult.error || "Gespräch gerade nicht verfügbar.");
+    if (request !== conversationRequest) return;
+    if (chatResult.skip_turn === true) {
+      conversationMessages = messages.slice(-8);
+      setLiveTranscript("");
+      session.processing = false;
+      session.lastAudioAt = performance.now();
+      session.stream.getAudioTracks().forEach((track) => { track.enabled = true; });
+      setTalkState("idle");
+      traceConversation("listening");
+      return;
+    }
     const answer = String(chatResult.response || "").trim().slice(0, 600);
     if (!answer) throw new Error("Es kam keine Antwort. Bitte versuchen Sie es erneut.");
     if (request !== conversationRequest) return;
@@ -826,13 +849,16 @@ async function runConversation(heard, request, session) {
         session.lastAudioAt = performance.now();
         session.stream.getAudioTracks().forEach((track) => { track.enabled = true; });
         traceConversation("listening");
+        setTalkState("idle");
       }
     }, { once: true });
     playback.start();
+    setTalkState("talking");
     traceConversation("reply-playing");
   } catch (error) {
     if (request === conversationRequest) {
       setHomeError();
+      setTalkState("idle");
       session.processing = false;
       session.lastAudioAt = performance.now();
       session.stream.getAudioTracks().forEach((track) => { track.enabled = true; });
@@ -871,6 +897,8 @@ function renderLibrary() {
     const demo = person === tourPerson;
     const selected = demo ? tourPersonSelected : state.selectedIds.includes(person.id);
     card.dataset.personId = person.id;
+    // Cover identity stays stable when selected people move to the front.
+    card.dataset.cover = String(person.bookCover ?? 0);
     card.className = `person-card${selected ? " is-selected" : ""}`;
     const select = document.createElement("button");
     select.className = "person-select";
@@ -884,15 +912,11 @@ function renderLibrary() {
     title.textContent = person.name || "Neue Person";
     const subtitle = document.createElement("p");
     subtitle.textContent = `${person.notes.length} ${person.notes.length === 1 ? "Erinnerung" : "Erinnerungen"} · ${person.language || "Schweizerdeutsch"}${person.sample ? " · Beispiel" : ""}`;
-    const initial = document.createElement("span");
-    initial.className = "person-initial";
-    initial.setAttribute("aria-hidden", "true");
-    initial.textContent = (person.name || "?").slice(0, 1).toUpperCase();
     const check = document.createElement("span");
     check.className = "person-selection";
     check.setAttribute("aria-hidden", "true");
     check.innerHTML = '<span class="icon icon-check"></span>';
-    select.append(initial, title, subtitle, check);
+    select.append(title, subtitle, check);
     select.addEventListener("click", () => {
       const nextSelected = !(demo ? tourPersonSelected : state.selectedIds.includes(person.id));
       if (demo) {
@@ -942,6 +966,7 @@ function addPerson() {
   }
   const person = {
     id: makeId(),
+    bookCover: [0, 1, 2].find(cover => !state.people.some(person => person.bookCover === cover)) ?? 0,
     name: "",
     age: "",
     language: "Schweizerdeutsch",

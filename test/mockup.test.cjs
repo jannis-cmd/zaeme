@@ -131,13 +131,16 @@ test("first family visit starts at people, then voice, then shows the booklet", 
   assert.equal(p.$("tour-title").textContent, "Person bearbeiten");
   assert.equal(p.stored(), null);
   p.click("tour-next");
+  assert.equal(p.$("tour-title").textContent, "Gemeinsame Erinnerungen");
+  assert.match(p.$("tour-text").textContent, /Mit dem Häkchen speichert/);
+  assert.equal(p.stored(), null);
+  p.click("tour-next");
   assert.equal(p.$("tour-title").textContent, "Wer bin ich?");
   assert.match(p.$("tour-text").textContent, /Was macht euren Menschen aus\?/);
   assert.match(p.$("tour-text").textContent, /Pfeil-Symbol rechts/);
+  assert.match(p.$("tour-text").textContent, /startet und beendet/);
   assert.equal(p.$("tour-text").querySelector(".inline-wordmark").textContent, "Zäme");
   assert.equal(p.$("tour-text").querySelectorAll(".inline-wordmark > span").length, 4);
-  p.click("tour-next");
-  assert.equal(p.$("tour-title").textContent, "Gemeinsame Erinnerungen");
   assert.equal(p.stored(), null);
   p.click("tour-next");
   assert.equal(p.$("family-tour").hidden, true);
@@ -305,16 +308,16 @@ test("tour aligns whole sections and briefly emphasizes titles then refresh", ()
   assert.equal(scrolls.at(-1).behavior, "instant");
   assert.equal(animations.length, 0);
   p.click("tour-next");
-  assert.equal(p.window.document.querySelector(".tour-target").classList.contains("compiled-title"), true);
-  assert.equal(animations[0].element.tagName, "H3");
-  assert.equal(animations[1].element.id, "compile-button");
+  assert.equal(p.window.document.querySelector(".tour-target").classList.contains("notes-panel"), true);
+  assert.equal(animations[0].element.id, "notes-heading");
+  assert.equal(animations[1].element.id, "note-form");
   assert.equal(animations[0].options.delay, 240);
   assert.equal(animations[1].options.delay, 660);
   assert.equal(animations[0].options.duration, 1000);
   p.click("tour-next");
-  assert.equal(p.window.document.querySelector(".tour-target").classList.contains("notes-panel"), true);
-  assert.equal(animations[2].element.id, "notes-heading");
-  assert.equal(animations[3].element.id, "note-form");
+  assert.equal(p.window.document.querySelector(".tour-target").classList.contains("compiled-title"), true);
+  assert.equal(animations[2].element.tagName, "H3");
+  assert.equal(animations[3].element.id, "compile-button");
 });
 
 test("tour demonstrates a blank person without persisting selection or a profile", () => {
@@ -530,7 +533,8 @@ test("live turns use native VAD finals, stream silence and resume after replies"
       calls.push({ url, options });
       if (url === "api/status") return { ok: true, json: async () => ({ realtime_ready: true, voice_ready: true, model_ready: true }) };
       if (url === "api/scribe-token") return { ok: true, json: async () => ({ token: "test-once" }) };
-      if (url === "api/chat") return { ok: true, json: async () => ({ response: "Guten Tag." }) };
+      if (url === "api/chat") return { ok: true, json: async () => JSON.parse(options.body).messages.at(-1).content === "Hallo Hilde?"
+        ? ({ response: "", skip_turn: true }) : ({ response: "Guten Tag." }) };
       if (url === "api/speak") return { ok: true, blob: async () => ({ arrayBuffer: async () => new ArrayBuffer(4) }) };
       throw new Error(`Unexpected ${url}`);
     };
@@ -542,6 +546,7 @@ test("live turns use native VAD finals, stream silence and resume after replies"
   p.click("talk-button");
   await new Promise(setImmediate);
   const params = new URL(socket.url).searchParams;
+  assert.equal(p.$("talk-button").dataset.state, "idle");
   assert.equal(params.get("commit_strategy"), "vad");
   assert.equal(params.get("min_silence_duration_ms"), "100");
   assert.equal(params.get("vad_silence_threshold_secs"), "2.0");
@@ -549,7 +554,9 @@ test("live turns use native VAD finals, stream silence and resume after replies"
   socket.emit("message", { data: JSON.stringify({ message_type: "partial_transcript", text: "Grüe" }) });
   assert.equal(p.$("live-transcript").textContent, "Grüe");
   socket.emit("message", { data: JSON.stringify({ message_type: "committed_transcript", text: "Grüezi" }) });
+  assert.equal(p.$("talk-button").dataset.state, "thinking");
   await new Promise(setImmediate);
+  assert.equal(p.$("talk-button").dataset.state, "talking");
   assert.equal(p.$("live-transcript").textContent, "Guten Tag.");
   assert.deepEqual(calls.map((call) => call.url), ["api/status", "api/scribe-token", "api/chat", "api/speak"]);
   assert.equal(JSON.parse(calls.at(-1).options.body).voice, "female");
@@ -557,6 +564,7 @@ test("live turns use native VAD finals, stream silence and resume after replies"
   assert.equal(p.$("home-status").hidden, true);
   assert.equal(p.stored().daily.used, 1);
   playback.ended();
+  assert.equal(p.$("talk-button").dataset.state, "idle");
   assert.equal(p.$("home-status").hidden, true);
   socket.emit("message", { data: JSON.stringify({ message_type: "partial_transcript", text: "Was muss ich heute für Tabletten nehmen?" }) });
   for (clock = 250; clock <= 7250; clock += 250) {
@@ -575,6 +583,14 @@ test("live turns use native VAD finals, stream silence and resume after replies"
   await new Promise(setImmediate);
   assert.equal(calls.filter((call) => call.url === "api/chat").length, 2);
   playback.ended();
+  socket.emit("message", { data: JSON.stringify({ message_type: "committed_transcript", text: "Hallo Hilde?" }) });
+  await new Promise(setImmediate);
+  assert.equal(calls.filter((call) => call.url === "api/chat").length, 3);
+  assert.equal(calls.filter((call) => call.url === "api/speak").length, 2);
+  assert.equal(p.$("talk-button").dataset.state, "idle");
+  assert.equal(p.$("live-transcript").hidden, true);
+  assert.equal(p.$("home-status").hidden, true);
+  assert.equal(p.stored().daily.used, 2);
   clock += 9000;
   silenceCheck();
   assert.match(p.$("home-status").textContent, /Eine kleine Pause/);
@@ -605,9 +621,14 @@ test("agent lifecycle is quiet, transcripts remain, and only errors show the fri
   }, agentSource);
   p.click("talk-button");
   assert.equal(p.$("home-status").hidden, true);
+  assert.equal(p.$("talk-button").dataset.state, "thinking");
   await new Promise(setImmediate);
+  assert.equal(p.$("talk-button").dataset.state, "idle");
+  callbacks.onMessage({ message: "Hallo.", source: "user" });
+  assert.equal(p.$("talk-button").dataset.state, "thinking");
   for (const mode of ["listening", "speaking"]) {
     callbacks.onModeChange({ mode });
+    assert.equal(p.$("talk-button").dataset.state, mode === "speaking" ? "talking" : "idle");
     assert.equal(p.$("home-status").hidden, true);
   }
   callbacks.onMessage({ message: "Grüezi Hilde.", source: "ai" });
@@ -615,6 +636,9 @@ test("agent lifecycle is quiet, transcripts remain, and only errors show the fri
   p.click("talk-button");
   assert.equal(p.$("home-status").hidden, true);
   assert.equal(p.$("live-transcript").hidden, true);
+  assert.equal(p.$("talk-button").dataset.state, "idle");
+  callbacks.onModeChange({ mode: "speaking" });
+  assert.equal(p.$("talk-button").dataset.state, "idle");
   p.click("talk-button");
   await new Promise(setImmediate);
   callbacks.onDisconnect();
@@ -937,4 +961,27 @@ test("migrates older guest data without keeping the fictional sample", () => {
     p.window.document.querySelector(".person-card h3").textContent,
     "Ruth",
   );
+});
+
+test("book covers keep their identity through selection, deletion and reload", () => {
+  const p = createPage();
+  for (const name of ["Ruth", "Hans", "Marta"]) {
+    p.click("new-person-button");
+    p.input("field-name", name);
+    p.click("editor-back");
+  }
+  const covers = () => Object.fromEntries([...p.window.document.querySelectorAll(".person-card")].map(card => [card.querySelector("h3").textContent, card.dataset.cover]));
+  assert.deepEqual(covers(), { Ruth: "0", Hans: "1", Marta: "2" });
+  p.window.document.querySelector(".person-select").click();
+  assert.deepEqual(covers(), { Hans: "1", Marta: "2", Ruth: "0" });
+  p.window.document.querySelector('[aria-label="Ruth bearbeiten"]').click();
+  p.click("delete-person-button");
+  p.dialog.close("confirm");
+  assert.deepEqual(covers(), { Hans: "1", Marta: "2" });
+  const saved = p.stored();
+  const reloaded = createPage(window => window.localStorage.setItem("hearth.guest.v3", JSON.stringify(saved)));
+  reloaded.window.document.querySelector('[data-view="library"]').click();
+  assert.deepEqual([...reloaded.window.document.querySelectorAll(".person-card")].map(card => card.dataset.cover), ["1", "2"]);
+  reloaded.click("new-person-button");
+  assert.equal(reloaded.stored().people.at(-1).bookCover, 0);
 });

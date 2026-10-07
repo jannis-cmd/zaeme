@@ -1,0 +1,395 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-07T15:00:02.510045+00:00",
+  "title": "Design System: Zäme",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "displayName": "Primary",
+        "role": "primary",
+        "canonical": "#116b5b",
+        "tonalRamp": [
+          "oklch(15% 0.0831 176.93)",
+          "oklch(25% 0.0831 176.93)",
+          "oklch(35% 0.0831 176.93)",
+          "oklch(45% 0.0831 176.93)",
+          "oklch(55% 0.0831 176.93)",
+          "oklch(65% 0.0831 176.93)",
+          "oklch(80% 0.0831 176.93)",
+          "oklch(95% 0.0831 176.93)"
+        ]
+      },
+      "focus-teal": {
+        "displayName": "Focus Teal",
+        "role": "secondary",
+        "canonical": "#19937e",
+        "tonalRamp": [
+          "oklch(15% 0.1049 177.24)",
+          "oklch(25% 0.1049 177.24)",
+          "oklch(35% 0.1049 177.24)",
+          "oklch(45% 0.1049 177.24)",
+          "oklch(55% 0.1049 177.24)",
+          "oklch(65% 0.1049 177.24)",
+          "oklch(80% 0.1049 177.24)",
+          "oklch(95% 0.1049 177.24)"
+        ]
+      },
+      "conversation-brown": {
+        "displayName": "Conversation Brown",
+        "role": "secondary",
+        "canonical": "#7a5c3a",
+        "tonalRamp": [
+          "oklch(15% 0.0627 69.04)",
+          "oklch(25% 0.0627 69.04)",
+          "oklch(35% 0.0627 69.04)",
+          "oklch(45% 0.0627 69.04)",
+          "oklch(55% 0.0627 69.04)",
+          "oklch(65% 0.0627 69.04)",
+          "oklch(80% 0.0627 69.04)",
+          "oklch(95% 0.0627 69.04)"
+        ]
+      },
+      "conversation-hover": {
+        "displayName": "Conversation Hover",
+        "role": "secondary",
+        "canonical": "#6c5032",
+        "tonalRamp": [
+          "oklch(15% 0.0580 67.41)",
+          "oklch(25% 0.0580 67.41)",
+          "oklch(35% 0.0580 67.41)",
+          "oklch(45% 0.0580 67.41)",
+          "oklch(55% 0.0580 67.41)",
+          "oklch(65% 0.0580 67.41)",
+          "oklch(80% 0.0580 67.41)",
+          "oklch(95% 0.0580 67.41)"
+        ]
+      },
+      "book-violet": {
+        "displayName": "Book Violet",
+        "role": "secondary",
+        "canonical": "#7e3093",
+        "tonalRamp": [
+          "oklch(15% 0.1664 318.41)",
+          "oklch(25% 0.1664 318.41)",
+          "oklch(35% 0.1664 318.41)",
+          "oklch(45% 0.1664 318.41)",
+          "oklch(55% 0.1664 318.41)",
+          "oklch(65% 0.1664 318.41)",
+          "oklch(80% 0.1664 318.41)",
+          "oklch(95% 0.1664 318.41)"
+        ]
+      },
+      "warm-background": {
+        "displayName": "Warm Background",
+        "role": "neutral",
+        "canonical": "#f7f4ef",
+        "tonalRamp": [
+          "oklch(15% 0.0074 80.72)",
+          "oklch(25% 0.0074 80.72)",
+          "oklch(35% 0.0074 80.72)",
+          "oklch(45% 0.0074 80.72)",
+          "oklch(55% 0.0074 80.72)",
+          "oklch(65% 0.0074 80.72)",
+          "oklch(80% 0.0074 80.72)",
+          "oklch(95% 0.0074 80.72)"
+        ]
+      },
+      "white-paper": {
+        "displayName": "White Paper",
+        "role": "neutral",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.88)",
+          "oklch(25% 0.0000 89.88)",
+          "oklch(35% 0.0000 89.88)",
+          "oklch(45% 0.0000 89.88)",
+          "oklch(55% 0.0000 89.88)",
+          "oklch(65% 0.0000 89.88)",
+          "oklch(80% 0.0000 89.88)",
+          "oklch(95% 0.0000 89.88)"
+        ]
+      },
+      "memory-sand": {
+        "displayName": "Memory Sand",
+        "role": "neutral",
+        "canonical": "#ede5d6",
+        "tonalRamp": [
+          "oklch(15% 0.0218 83.26)",
+          "oklch(25% 0.0218 83.26)",
+          "oklch(35% 0.0218 83.26)",
+          "oklch(45% 0.0218 83.26)",
+          "oklch(55% 0.0218 83.26)",
+          "oklch(65% 0.0218 83.26)",
+          "oklch(80% 0.0218 83.26)",
+          "oklch(95% 0.0218 83.26)"
+        ]
+      },
+      "ink": {
+        "displayName": "Ink",
+        "role": "neutral",
+        "canonical": "#2e3830",
+        "tonalRamp": [
+          "oklch(15% 0.0194 151.08)",
+          "oklch(25% 0.0194 151.08)",
+          "oklch(35% 0.0194 151.08)",
+          "oklch(45% 0.0194 151.08)",
+          "oklch(55% 0.0194 151.08)",
+          "oklch(65% 0.0194 151.08)",
+          "oklch(80% 0.0194 151.08)",
+          "oklch(95% 0.0194 151.08)"
+        ]
+      },
+      "muted": {
+        "displayName": "Muted",
+        "role": "neutral",
+        "canonical": "#5a6360",
+        "tonalRamp": [
+          "oklch(15% 0.0121 173.85)",
+          "oklch(25% 0.0121 173.85)",
+          "oklch(35% 0.0121 173.85)",
+          "oklch(45% 0.0121 173.85)",
+          "oklch(55% 0.0121 173.85)",
+          "oklch(65% 0.0121 173.85)",
+          "oklch(80% 0.0121 173.85)",
+          "oklch(95% 0.0121 173.85)"
+        ]
+      },
+      "divider": {
+        "displayName": "Divider",
+        "role": "neutral",
+        "canonical": "#e4ddd3",
+        "tonalRamp": [
+          "oklch(15% 0.0155 77.06)",
+          "oklch(25% 0.0155 77.06)",
+          "oklch(35% 0.0155 77.06)",
+          "oklch(45% 0.0155 77.06)",
+          "oklch(55% 0.0155 77.06)",
+          "oklch(65% 0.0155 77.06)",
+          "oklch(80% 0.0155 77.06)",
+          "oklch(95% 0.0155 77.06)"
+        ]
+      },
+      "danger": {
+        "displayName": "Danger",
+        "role": "secondary",
+        "canonical": "#a23438",
+        "tonalRamp": [
+          "oklch(15% 0.1451 22.30)",
+          "oklch(25% 0.1451 22.30)",
+          "oklch(35% 0.1451 22.30)",
+          "oklch(45% 0.1451 22.30)",
+          "oklch(55% 0.1451 22.30)",
+          "oklch(65% 0.1451 22.30)",
+          "oklch(80% 0.1451 22.30)",
+          "oklch(95% 0.1451 22.30)"
+        ]
+      },
+      "light-teal": {
+        "displayName": "Light Teal",
+        "role": "secondary",
+        "canonical": "#e0f2ee",
+        "tonalRamp": [
+          "oklch(15% 0.0197 181.11)",
+          "oklch(25% 0.0197 181.11)",
+          "oklch(35% 0.0197 181.11)",
+          "oklch(45% 0.0197 181.11)",
+          "oklch(55% 0.0197 181.11)",
+          "oklch(65% 0.0197 181.11)",
+          "oklch(80% 0.0197 181.11)",
+          "oklch(95% 0.0197 181.11)"
+        ]
+      },
+      "logo-blue": {
+        "displayName": "Logo Blue",
+        "role": "secondary",
+        "canonical": "#3ab7cb",
+        "tonalRamp": [
+          "oklch(15% 0.1096 210.46)",
+          "oklch(25% 0.1096 210.46)",
+          "oklch(35% 0.1096 210.46)",
+          "oklch(45% 0.1096 210.46)",
+          "oklch(55% 0.1096 210.46)",
+          "oklch(65% 0.1096 210.46)",
+          "oklch(80% 0.1096 210.46)",
+          "oklch(95% 0.1096 210.46)"
+        ]
+      },
+      "logo-orange": {
+        "displayName": "Logo Orange",
+        "role": "secondary",
+        "canonical": "#ff674e",
+        "tonalRamp": [
+          "oklch(15% 0.1903 31.58)",
+          "oklch(25% 0.1903 31.58)",
+          "oklch(35% 0.1903 31.58)",
+          "oklch(45% 0.1903 31.58)",
+          "oklch(55% 0.1903 31.58)",
+          "oklch(65% 0.1903 31.58)",
+          "oklch(80% 0.1903 31.58)",
+          "oklch(95% 0.1903 31.58)"
+        ]
+      },
+      "logo-yellow": {
+        "displayName": "Logo Yellow",
+        "role": "secondary",
+        "canonical": "#feca00",
+        "tonalRamp": [
+          "oklch(15% 0.1758 89.82)",
+          "oklch(25% 0.1758 89.82)",
+          "oklch(35% 0.1758 89.82)",
+          "oklch(45% 0.1758 89.82)",
+          "oklch(55% 0.1758 89.82)",
+          "oklch(65% 0.1758 89.82)",
+          "oklch(80% 0.1758 89.82)",
+          "oklch(95% 0.1758 89.82)"
+        ]
+      }
+    },
+    "shadows": [
+      {
+        "name": "book",
+        "value": "3px 4px 0 #fff, 4px 5px 0 #d9cfc0, 0 10px 22px #2e383014",
+        "purpose": "Closed book page edges and elevation."
+      },
+      {
+        "name": "open-spread",
+        "value": "0 10px 32px #2e383010, 0 3px 0 #d9cfc0",
+        "purpose": "Open paper spread."
+      },
+      {
+        "name": "overlay",
+        "value": "0 24px 72px rgba(25, 45, 34, .18)",
+        "purpose": "Family panel elevation."
+      },
+      {
+        "name": "dialog",
+        "value": "0 12px 32px #203d2b24",
+        "purpose": "Application dialog."
+      }
+    ],
+    "motion": [
+      {
+        "name": "standard",
+        "value": "cubic-bezier(0.2, 0.85, 0.25, 1)",
+        "purpose": "Control and surface transitions."
+      },
+      {
+        "name": "soft-spring",
+        "value": "cubic-bezier(0.22, 1.15, 0.36, 1)",
+        "purpose": "Memory arrival and expansion."
+      },
+      {
+        "name": "book-paper",
+        "value": "360ms cubic-bezier(.32, .72, 0, 1)",
+        "purpose": "Paper movement; opening delay 220ms."
+      },
+      {
+        "name": "book-cover",
+        "value": "300ms cubic-bezier(.4, 0, .2, 1)",
+        "purpose": "Cover rotation; closing delay 260ms."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "book-shelf-two-columns",
+        "value": "1000px"
+      },
+      {
+        "name": "stacked-spread",
+        "value": "820px"
+      },
+      {
+        "name": "donation-stack",
+        "value": "760px"
+      },
+      {
+        "name": "mobile",
+        "value": "600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The labeled add-person action.",
+      "html": "<button class=\"ds-primary\"><svg width=\"24\" height=\"24\" stroke-width=\"1.5\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n<path d=\"M6 12H12M18 12H12M12 12V6M12 12V18\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n</svg>Person hinzufügen</button>",
+      "css": ".ds-primary{font-family:\"Nunito Sans\",\"Segoe UI\",sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:52px;padding:12px 21px;border:1px solid transparent;border-radius:10px;background:var(--teal-dark,#116b5b);color:white;font-size:15px;font-weight:700;transition:background-color 160ms cubic-bezier(.2,.85,.25,1),transform 130ms cubic-bezier(.2,.85,.25,1)}.ds-primary svg{width:22px;height:22px}.ds-primary:hover{background:#0d584b}.ds-primary:active{transform:scale(.97)}.ds-primary:focus-visible{outline:3px solid var(--teal,#19937e);outline-offset:3px;}"
+    },
+    {
+      "name": "Icon action",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "Obvious actions retain an accessible name and tooltip.",
+      "html": "<button class=\"ds-icon\" aria-label=\"Erinnerung speichern\" title=\"Erinnerung speichern\"><svg width=\"24\" height=\"24\" stroke-width=\"1.5\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n<path d=\"M5 13L9 17L19 7\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n</svg></button>",
+      "css": ".ds-icon{display:inline-grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:13px;color:var(--teal-dark,#116b5b);background:transparent;transition:background-color 150ms cubic-bezier(.23,1,.32,1),transform 130ms cubic-bezier(.23,1,.32,1)}.ds-icon svg{width:22px;height:22px}.ds-icon:hover{background:#e8f1ec}.ds-icon:active{transform:scale(.97)}.ds-icon:focus-visible{outline:3px solid var(--teal,#19937e);outline-offset:3px;}"
+    },
+    {
+      "name": "Profile field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "A labeled, readable profile input.",
+      "html": "<label class=\"ds-label\">Vorname<input class=\"ds-field\" placeholder=\"z. B. Marta\"></label>",
+      "css": ".ds-label{font-family:\"Nunito Sans\",\"Segoe UI\",sans-serif;display:block;color:var(--ink,#2e3830);font-size:15px;font-weight:600}.ds-field{font-family:\"Nunito Sans\",\"Segoe UI\",sans-serif;display:block;width:100%;min-height:44px;margin-top:9px;padding:10px 12px;border:1px solid var(--line,#e4ddd3);border-radius:8px;background:var(--bg,#f7f4ef);color:var(--ink,#2e3830);font-size:16px;font-weight:400;line-height:1.45}.ds-field::placeholder{color:var(--muted,#5a6360);opacity:1}.ds-field:focus{outline:2px solid var(--teal-dark,#116b5b);outline-offset:2px;border-color:var(--teal-dark,#116b5b)}"
+    },
+    {
+      "name": "Family navigation",
+      "kind": "nav",
+      "refersTo": "family-nav",
+      "description": "Labeled tabs with an active underline.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Hauptnavigation\"><button class=\"ds-active\">Für Angehörige</button><button>Spenden</button></nav>",
+      "css": ".ds-nav{display:flex;gap:24px}.ds-nav button{font-family:\"Nunito Sans\",\"Segoe UI\",sans-serif;position:relative;min-height:44px;padding:8px 4px;border:0;background:none;color:var(--muted,#5a6360);font-size:15px;font-weight:700}.ds-nav button:hover{color:var(--teal-dark,#116b5b)}.ds-nav .ds-active{color:var(--talk-brown,#7a5c3a)}.ds-nav .ds-active:after{content:\"\";position:absolute;left:4px;right:4px;bottom:3px;height:2px;border-radius:2px;background:currentColor}.ds-nav button:focus-visible{outline:3px solid var(--teal,#19937e);outline-offset:3px;}"
+    },
+    {
+      "name": "Friendship book",
+      "kind": "custom",
+      "refersTo": "friendship-book",
+      "description": "Persistent cover color with a separate selected state.",
+      "html": "<button class=\"ds-book\" aria-pressed=\"true\"><strong>Marta</strong><small>Schweizerdeutsch</small><span class=\"ds-selection\"><svg width=\"24\" height=\"24\" stroke-width=\"1.5\" viewBox=\"0 0 24 24\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\">\n<path d=\"M5 13L9 17L19 7\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>\n</svg></span></button>",
+      "css": ".ds-book{font-family:\"Nunito Sans\",\"Segoe UI\",sans-serif;position:relative;width:100%;min-height:284px;padding:72px 28px 36px;display:flex;flex-direction:column;justify-content:flex-end;border:0;border-radius:5px 16px 16px 5px;background:var(--teal-dark,#116b5b);color:white;text-align:left;box-shadow:3px 4px 0 white,4px 5px 0 #d9cfc0,0 10px 22px #2e383014;outline:2px solid var(--teal-dark,#116b5b);outline-offset:5px;transition:transform 180ms cubic-bezier(.2,.85,.25,1)}.ds-book:before{content:\"\";position:absolute;top:0;bottom:0;left:14px;border-left:1px solid #ffffff35}.ds-book strong{display:block;font-size:28px;line-height:1.2;letter-spacing:-.02em}.ds-book small{display:block;margin-top:8px;font-size:14px}.ds-selection{position:absolute;left:12px;top:12px;width:44px;height:44px;display:grid;place-items:center}.ds-selection svg{width:20px;height:20px}.ds-book:hover{transform:translateY(-3px)}.ds-book:focus-visible{outline:3px solid var(--teal,#19937e);outline-offset:3px;}"
+    },
+    {
+      "name": "Memory card",
+      "kind": "card",
+      "refersTo": "memory-card",
+      "description": "Flat sand paper with expandable recollection text.",
+      "html": "<article class=\"ds-memory\"><span class=\"ds-date\">7. Oktober 2026</span><button class=\"ds-memory-text\" aria-expanded=\"false\">Unsere Spaziergänge am See waren immer besonders schön.</button></article>",
+      "css": ".ds-memory{font-family:\"Nunito Sans\",\"Segoe UI\",sans-serif;height:184px;overflow:hidden;padding:15px 18px 18px;border-radius:12px;background:var(--sand,#ede5d6);color:var(--ink,#2e3830);box-shadow:none}.ds-date{color:#425a50;font-size:12px}.ds-memory-text{font-family:\"Nunito Sans\",\"Segoe UI\",sans-serif;display:block;width:100%;margin-top:9px;padding:0;border:0;background:transparent;color:inherit;text-align:left;font-size:16px;line-height:1.55}.ds-memory:hover{background:#e8dece}.ds-memory:focus-within{outline:2px solid var(--teal-dark,#116b5b);outline-offset:3px}.ds-memory-text:focus-visible{outline:none}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Friendship Book",
+    "overview": "The Friendship Book gives Zäme a familiar, personal character: warm paper, readable rounded lettering and controlled colorful covers. Native HTML and CSS provide the aesthetic; there is no official component framework. The approved settings are design variance 3, motion 2 and density 3.\n\nDepth explains objects and transitions. Color identifies a person or an action, while neutral pages keep longer text calm. Preserve the user’s updated organic conversation button and its idle/listening, thinking and talking animations, and the colorful Zäme lettering.",
+    "keyCharacteristics": [
+      "Warm paper and dark readable text.",
+      "Persistent teal, brown and violet book identities.",
+      "Neutral open pages and sand memory cards.",
+      "Large controls, clear selection and restrained motion."
+    ],
+    "rules": [
+      {
+        "name": "Stable Cover",
+        "body": "Cover color belongs to the person’s persisted bookCover, never to selection. Selection adds an outline and a circled check at the upper left, aligned with the edit pencil. No decorative initials or selection labels.",
+        "section": "colors"
+      },
+      {
+        "name": "Introduction Funnel",
+        "body": "People and circled selection, voice, profile, shared memories, then summary refresh. Memories precede the derived summary. Demo profiles are never saved. The user’s updated organic home button uses idle/listening, thinking and talking states.",
+        "section": "components"
+      }
+    ],
+    "dos": [
+      "Do preserve the colorful wordmark and original conversation-button states and animations.",
+      "Do retain a person’s persisted bookCover when selecting, editing or deleting another profile.",
+      "Do give icon-only actions accessible names, tooltips and 44px targets.",
+      "Do keep the primary add-person action labeled; use icons for selection and editing.",
+      "Do honor reduced motion and maintain all existing content and functions."
+    ],
+    "donts": [
+      "Don’t recolor a cover to indicate selection.",
+      "Don’t introduce competing bright colors inside the open book.",
+      "Don’t remove keyboard focus or communicate selection through color alone."
+    ]
+  }
+}
