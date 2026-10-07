@@ -1,0 +1,12 @@
+{
+  "payment_url": null,
+  "github_url": null,
+  "budget": {
+    "demo": true,
+    "donated_chf": 20,
+    "hosting_chf": 1,
+    "ai_chf": 2,
+    "speech_chf": 2,
+    "verified_at": null
+  }
+}

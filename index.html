@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="de-CH">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f4ef" />
+    <meta
+      name="description"
+      content="Zäme: ein ruhiger Gesprächsmoment, persönlich vorbereitet von Angehörigen."
+    />
+    <title>Zäme · Ein Gesprächsmoment</title>
+    <link rel="stylesheet" href="styles.css?v=30" />
+    <link rel="stylesheet" href="donation.css?v=1" />
+    <script src="app.js?v=30" defer></script>
+    <script src="donation.js?v=2" defer></script>
+  </head>
+  <body class="is-home">
+    <header class="site-header">
+      <div class="header-inner">
+        <a
+          class="brand"
+          href="#start"
+          data-view="home"
+          aria-label="Zäme, zur Startseite"
+          ><span class="brand-symbol" aria-hidden="true"
+            ><i></i><i></i><i></i><i></i></span
+          ><span class="wordmark" aria-hidden="true"
+            ><span>Z</span><span>ä</span><span>m</span><span>e</span></span
+          ></a
+        >
+        <nav aria-label="Hauptnavigation">
+          <button type="button" class="nav-link" data-view="library">
+            Für Angehörige</button
+          ><button type="button" class="nav-link" data-view="donate">
+            Spenden</button
+          ><button
+            type="button"
+            class="nav-login"
+            id="login-button"
+            aria-label="Konto"
+            title="Konto"
+          >
+            <span class="icon icon-profile" aria-hidden="true"></span>
+          </button>
+        </nav>
+      </div>
+    </header>
+    <main>
+      <section
+        class="view home-view"
+        id="home-view"
+        aria-labelledby="home-title"
+      >
+        <div class="home-center">
+          <h1 id="home-title">Hallo, Wer bist du?</h1>
+          <button type="button" class="talk-button" id="talk-button">
+            Für Angehörige
+            <span class="icon icon-arrow-right" aria-hidden="true"></span>
+          </button>
+          <p class="live-transcript" id="live-transcript" hidden></p>
+          <p class="home-status" id="home-status" role="alert" hidden></p>
+        </div>
+      </section>
+      <section
+        class="view page-view hidden"
+        id="library-view"
+        aria-labelledby="library-title"
+      >
+        <button
+          class="back-button library-back"
+          id="library-home"
+          data-view="home"
+          type="button"
+        >
+          <span class="icon icon-arrow-left" aria-hidden="true"></span>
+          <span id="library-home-label">Zur Startseite</span>
+        </button>
+        <fieldset class="voice-choice" aria-label="Stimme für das Gespräch">
+          <legend>Stimme</legend>
+          <div class="voice-choice-options">
+            <label><input type="radio" name="voice-gender" value="female" /> Weiblich</label>
+            <label><input type="radio" name="voice-gender" value="male" /> Männlich</label>
+          </div>
+        </fieldset>
+        <div class="page-head">
+          <div>
+            <h1 id="library-title">Personen</h1>
+          </div>
+          <button
+            class="icon-button add-person-button"
+            id="new-person-button"
+            type="button"
+            aria-label="Person hinzufügen"
+            title="Person hinzufügen"
+          >
+            <span class="icon icon-plus" aria-hidden="true"></span>
+          </button>
+        </div>
+        <p class="limit-message" id="person-limit-message" hidden>
+          Hier ist Platz für drei Personen. Löschen Sie ein Profil, um ein neues
+          anzulegen.
+        </p>
+        <div class="person-grid" id="person-grid"></div>
+      </section>
+      <section
+        class="view page-view editor-view hidden"
+        id="editor-view"
+        aria-labelledby="editor-title"
+      >
+        <button class="back-button" id="editor-back" type="button">
+          <span class="icon icon-arrow-left" aria-hidden="true"></span> Personen
+        </button>
+        <div class="editor-heading">
+          <h1 id="editor-title">Profil</h1>
+          <button class="icon-button delete-person-button" id="delete-person-button" type="button" aria-label="Profil löschen" title="Profil löschen">
+            <span class="icon icon-trash" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div class="editor-grid">
+          <section
+            class="editor-panel profile-panel"
+            aria-labelledby="profile-heading"
+          >
+            <h2 id="profile-heading" class="book-heading">Über mich</h2>
+            <div class="field-grid">
+              <label
+                >Vorname<input
+                  id="field-name"
+                  maxlength="50"
+                  autocomplete="off"
+                  placeholder="z. B. Marta" /></label
+              ><label
+                >Alter
+                <input
+                  id="field-age"
+                  type="number"
+                  min="1"
+                  max="120"
+                  placeholder="z. B. 78" /></label
+              ><label
+                >Sprache<select id="field-language">
+                  <option value="Schweizerdeutsch">Schweizerdeutsch</option>
+                  <option value="Deutsch">Deutsch</option>
+                  <option value="English">English</option>
+                  <option value="Français">Français</option>
+                  <option value="Italiano">Italiano</option>
+                </select></label
+              ><label
+                >Ansprache<select id="field-address">
+                  <option value="du">Du</option>
+                  <option value="Sie">Sie</option>
+                </select></label
+              >
+            </div>
+            <label class="wide-field"
+              >Für gute Gespräche
+              <textarea
+                id="field-guidance"
+                rows="2"
+                maxlength="500"
+                placeholder="Was tut gut? Welche Themen lieber meiden?"
+              ></textarea>
+            </label>
+            <div class="compiled-card">
+              <div class="compiled-title">
+                <h3>Wer bin ich?</h3>
+                <button
+                  class="icon-button sync-button"
+                  id="compile-button"
+                  type="button"
+                  aria-label="Zusammenfassung aktualisieren"
+                  title="Zusammenfassung aktualisieren"
+                >
+                  <span class="icon icon-refresh" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="compiled-content" id="compiled-content" role="status" aria-live="polite">
+                <p class="compiled-empty">Was ich mag, was mir wichtig ist und was mich ausmacht – hier finden eure Erinnerungen zusammen.</p>
+              </div>
+            </div>
+          </section>
+          <section
+            class="editor-panel notes-panel"
+            aria-labelledby="notes-heading"
+          >
+            <div class="panel-top">
+              <h2 id="notes-heading">Gemeinsame Erinnerungen</h2>
+            </div>
+            <form id="note-form" class="note-composer">
+              <div id="compose-idle">
+                <label for="note-text" class="visually-hidden"
+                  >Erinnerung notieren</label
+                >
+                <textarea
+                  id="note-text"
+                  rows="3"
+                  maxlength="500"
+                  placeholder="Was verbindet euch? Eine Erinnerung festhalten …"
+                ></textarea>
+                <div class="composer-actions">
+                  <button
+                    type="button"
+                    class="icon-button mic-button"
+                    id="record-note-button"
+                    aria-label="Sprachnotiz aufnehmen"
+                    title="Sprachnotiz aufnehmen"
+                  >
+                    <span
+                      class="icon icon-microphone"
+                      aria-hidden="true"
+                    ></span>
+                  </button>
+                  <button
+                    class="icon-button composer-save"
+                    id="save-note-button"
+                    type="submit"
+                    aria-label="Erinnerung speichern"
+                    title="Erinnerung speichern"
+                  >
+                    <span class="icon icon-check" aria-hidden="true"></span>
+                  </button>
+                </div>
+              </div>
+              <div class="recording-panel" id="recording-panel" hidden>
+                <button
+                  type="button"
+                  class="icon-button recording-discard"
+                  id="discard-recording"
+                  aria-label="Aufnahme verwerfen"
+                  title="Aufnahme verwerfen"
+                >
+                  <span class="icon icon-xmark" aria-hidden="true"></span>
+                </button>
+                <div
+                  class="waveform"
+                  id="recording-waveform"
+                  aria-label="Aufnahme läuft"
+                ></div>
+                <button
+                  type="button"
+                  class="icon-button recording-confirm"
+                  id="confirm-recording"
+                  aria-label="Aufnahme notieren"
+                  title="Aufnahme notieren"
+                >
+                  <span class="icon icon-check" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="transcribing-panel" id="transcribing-panel" hidden>
+                <span
+                  class="icon icon-refresh loading-icon"
+                  aria-hidden="true"
+                ></span>
+                Notieren …
+              </div>
+            </form>
+            <p class="form-hint" id="note-form-hint" role="status" hidden></p>
+            <div id="notes-list" class="notes-list"></div>
+          </section>
+        </div>
+      </section>
+      <section
+        class="view page-view donate-view hidden"
+        id="donate-view"
+        aria-labelledby="donate-title"
+      >
+        <div class="donation-intro">
+          <h1 id="donate-title">Mehr Nähe im Alltag<span class="period">.</span></h1>
+          <p>Zäme ist ein gemeinnütziges Projekt für Menschen mit Demenz. Wir möchten vertraute Gesprächsmomente ermöglichen – einfach auf Knopfdruck und kostenlos. Erinnerungen und Vorlieben, die Angehörige einbringen, helfen Zäme, an das anzuknüpfen, was persönlich zählt.</p>
+        </div>
+        <div class="donation-support">
+          <div class="donation-appeal">
+            <h2>Ein Gespräch schenken.</h2>
+            <p>Deine Spende fliesst direkt in die KI-Infrastruktur: Sprachverarbeitung, KI-Modell und Hosting. So helfen wir gemeinsam, Zäme kostenlos zugänglich zu halten.</p>
+            <button class="button button-primary" id="donate-button" type="button" disabled aria-describedby="donation-payment-note">Mit TWINT spenden <span class="icon icon-arrow-up-right" aria-hidden="true"></span></button>
+            <p class="donation-caption" id="donation-payment-note">Der Spendenweg wird noch eingerichtet.</p>
+          </div>
+          <figure class="donation-budget" aria-labelledby="donation-budget-title">
+            <figcaption id="donation-budget-title">Unser offenes Budget</figcaption>
+            <dl class="donation-totals">
+              <div class="donation-total donation-total-in"><dt>Gespendet</dt><dd id="donation-income">CHF —</dd></div>
+              <div class="donation-total donation-total-out"><dt>Für den Betrieb ausgegeben</dt><dd id="donation-expenses">CHF —</dd></div>
+            </dl>
+            <div class="donation-comparison" id="donation-comparison" hidden aria-hidden="true"><div><i id="donation-income-bar"></i></div><div><i id="donation-expenses-bar"></i></div></div>
+            <dl class="donation-costs" aria-label="Betriebskosten nach Bereich">
+              <div><dt><i class="cost-hosting" aria-hidden="true"></i>Hosting</dt><dd id="donation-hosting">CHF —</dd></div>
+              <div><dt><i class="cost-ai" aria-hidden="true"></i>KI</dt><dd id="donation-ai">CHF —</dd></div>
+              <div><dt><i class="cost-speech" aria-hidden="true"></i>Sprache</dt><dd id="donation-speech">CHF —</dd></div>
+            </dl>
+            <p class="donation-caption" id="donation-budget-note">Hier erscheinen bestätigte Spenden und tatsächliche Kosten. Noch liegen keine verifizierten Zahlen vor.</p>
+          </figure>
+        </div>
+        <section class="donation-partners" aria-labelledby="donation-partners-title">
+          <h2 id="donation-partners-title">Gemeinsam für Zäme.</h2>
+          <p>Ein gemeinsames Projekt von Demenzfreundlich Kreis 6 und MYNA.</p>
+          <div class="donation-partner-logos">
+            <a href="https://demenzfreundlich-kreis6.ch/" target="_blank" rel="noopener noreferrer" aria-label="Demenzfreundlich Kreis 6 – Website öffnen"><img src="assets/demenzfreundlich-kreis6.png" width="618" height="404" alt="Demenzfreundlich Kreis 6" /></a>
+            <a class="donation-myna" href="https://myna-ai.ch/" target="_blank" rel="noopener noreferrer" aria-label="MYNA – Website öffnen"><img src="assets/myna.svg" width="62" height="62" alt="" /><span>MYNA</span></a>
+          </div>
+        </section>
+        <section class="donation-technical" aria-labelledby="donation-technical-title">
+          <h2 id="donation-technical-title">Technischer Hintergrund</h2>
+          <p>Zäme wird als Open-Source-Projekt entwickelt: offen zum Nachvollziehen, Mitgestalten und Weiterverwenden. Das KI-Modell läuft bei <a href="https://www.infomaniak.com/de/hosting/ai-tools" target="_blank" rel="noopener noreferrer">Infomaniak in der Schweiz</a>. Für die Sprachverarbeitung nutzen wir ElevenLabs. <a href="https://elevenlabs.io/docs/overview/administration/data-residency" target="_blank" rel="noopener noreferrer">EU-Hosting für ElevenLabs</a> ist geplant, aber noch nicht eingerichtet. Die Vorschau nutzt derzeit den Standarddienst; bitte nur erfundene Testdaten verwenden.</p>
+          <a id="donation-github" class="donation-source-link" hidden target="_blank" rel="noopener noreferrer">Quellcode auf GitHub <span class="icon icon-arrow-up-right" aria-hidden="true"></span></a>
+          <p class="donation-caption" id="donation-source-note">Der öffentliche GitHub-Link folgt mit der Veröffentlichung.</p>
+        </section>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div>
+        <span class="footer-brand" aria-label="Zäme"
+          ><span class="wordmark" aria-hidden="true"
+            ><span>Z</span><span>ä</span><span>m</span><span>e</span></span
+          ></span
+        ><span>Ein offenes Projekt für mehr Nähe im Alltag.</span>
+      </div>
+      <span
+        >Kein Ersatz für Betreuung, medizinischen Rat oder Hilfe im
+        Notfall.</span
+      ><a
+        href="https://demenzfreundlich-kreis6.ch/"
+        target="_blank"
+        rel="noopener noreferrer"
+        >Demenzfreundlich Kreis 6
+        <span class="icon icon-arrow-up-right" aria-hidden="true"></span
+      ></a>
+    </footer>
+    <aside id="family-tour" class="family-tour" aria-labelledby="tour-title" hidden>
+      <button id="tour-skip" class="icon-button tour-skip" type="button" aria-label="Einführung überspringen" title="Einführung überspringen"><span class="icon icon-xmark" aria-hidden="true"></span></button>
+      <div class="tour-copy" aria-live="polite"><h2 id="tour-title"></h2><p id="tour-text"></p></div>
+      <div class="tour-footer"><span id="tour-progress" aria-label="Schritt"></span><button id="tour-next" class="icon-button tour-next" type="button" aria-label="Weiter"><span class="icon icon-arrow-right" aria-hidden="true"></span></button></div>
+    </aside>
+    <dialog id="app-dialog" class="app-dialog">
+      <form method="dialog">
+        <button class="dialog-close" aria-label="Schliessen" value="close">
+          <span class="icon icon-xmark" aria-hidden="true"></span>
+        </button>
+        <h2 id="dialog-title"></h2>
+        <p id="dialog-message"></p>
+        <div class="dialog-actions" id="dialog-actions">
+          <button class="button button-primary" value="close">
+            Verstanden
+          </button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
