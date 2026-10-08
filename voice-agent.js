@@ -49,7 +49,7 @@ startConversation = async function () {
       body: JSON.stringify({ profiles: selectedPeople(), voice: state.voiceGender }),
     });
     config = await response.json();
-    if (!response.ok) throw new Error('Das Gespräch konnte nicht gestartet werden.');
+    if (!response.ok) throw new Error(config.error || 'Das Gespräch konnte nicht gestartet werden.');
     if (request !== conversationRequest) return;
     if (config.backend !== 'agents') {
       document.documentElement.dataset.voiceBackend = 'classic';
@@ -60,8 +60,8 @@ startConversation = async function () {
     document.documentElement.dataset.voiceBackend = 'agents';
     let receivedMode = false;
     const agent = await Conversation.startSession({
-      conversationToken: config.token,
-      connectionType: 'webrtc',
+      ...(config.signed_url ? { signedUrl: config.signed_url, connectionType: 'websocket' }
+        : { conversationToken: config.token, connectionType: 'webrtc' }),
       dynamicVariables: { profiles: config.profiles, group_rules: config.group_rules, greeting: config.greeting },
       overrides: { tts: { voiceId: config.voice_id } },
       onIncomingEvent: (event) => {
@@ -106,10 +106,13 @@ startConversation = async function () {
     conversationConnecting = false;
     if (!receivedMode) setTalkState('idle');
     $('talk-button').classList.add('is-recording');
-    agentTimer = setTimeout(() => { stopConversation(); }, config.max_seconds * 1000);
+    agentTimer = setTimeout(() => {
+      stopConversation();
+      if (config.guest) setHomeError('Die fünf Minuten zum Ausprobieren sind aufgebraucht. Über «Angehörige» können Sie sich anmelden und weitersprechen.');
+    }, config.max_seconds * 1000);
   } catch (error) {
     if (request !== conversationRequest) return;
     stopConversation();
-    setHomeError();
+    setHomeError(error.message);
   }
 };

@@ -8,6 +8,23 @@ import agents_service as service
 
 
 class AgentsTest(unittest.TestCase):
+    def test_persona_setup_reuses_provider_secret_without_reading_model_key(self):
+        with tempfile.TemporaryDirectory() as folder:
+            config = Path(folder) / 'config.json'
+            config.write_text(json.dumps({'agent_id': 'voice-test'}))
+            llm = {'url': 'https://example.com/v1', 'model_id': 'same-model', 'api_key': {'secret_id': 'existing-secret'}}
+            with patch.object(service, 'CONFIG', config), \
+                    patch.object(service, 'model_api_key', side_effect=AssertionError('Must not export key')), \
+                    patch.object(service, 'api', side_effect=[{'conversation_config': {'agent': {'prompt': {'custom_llm': llm}}}}, {'agent_id': 'persona-test'}]) as api:
+                service.setup_persona()
+            body = api.call_args_list[1].args[1]
+            self.assertEqual(body['conversation_config']['agent']['prompt']['custom_llm'], llm)
+            self.assertEqual(body['conversation_config']['agent']['prompt']['prompt'], service.PERSONA_RULES)
+            self.assertTrue(body['conversation_config']['conversation']['text_only'])
+            self.assertTrue(body['platform_settings']['auth']['enable_auth'])
+            self.assertFalse(body['platform_settings']['queueing_config']['enabled'])
+            self.assertEqual(json.loads(config.read_text())['persona_agent_id'], 'persona-test')
+
     def test_config_private_same_model_no_burst(self):
         with patch.dict(service.os.environ, {'ZAEME_MODEL_URL': 'https://example.com/openai', 'ZAEME_MODEL_ID': 'same-model'}):
             config = service.agent_config('secret-test')
@@ -19,7 +36,7 @@ class AgentsTest(unittest.TestCase):
         self.assertEqual(config['conversation_config']['conversation']['max_duration_seconds'], 600)
         self.assertTrue(config['platform_settings']['overrides']['conversation_config_override']['tts']['voice_id'])
         self.assertIn('greeting', config['conversation_config']['agent']['dynamic_variables']['dynamic_variable_placeholders'])
-        self.assertEqual(config['conversation_config']['turn']['turn_timeout'], 30)
+        self.assertEqual(config['conversation_config']['turn']['turn_timeout'], 15)
         self.assertEqual(config['conversation_config']['turn']['turn_eagerness'], 'patient')
 
     def test_low_allowance_falls_back_before_requesting_token(self):
@@ -37,8 +54,15 @@ class AgentsTest(unittest.TestCase):
         self.assertEqual(result['backend'], 'classic')
 
     def test_bad_voice_rejected(self):
-        with self.assertRaises(ValueError):
-            service.session({'profiles': [{'name': 'Test'}], 'voice': 'arbitrary-id'})
+        for voice in ('arbitrary-id', [], {}):
+            with self.assertRaises(ValueError):
+                service.session({'profiles': [{'name': 'Test'}], 'voice': voice})
+
+    def test_malformed_reservation_rejected_before_reading_secrets(self):
+        for reservation in (None, [], {}, 'x' * 129):
+            with patch.object(service, 'api') as api, self.assertRaises(ValueError):
+                service.settle({'conversation_id': 'conv_synthetic', 'reservation': reservation})
+            api.assert_not_called()
 
     def test_group_session_carries_separate_memories_rules_and_greeting(self):
         with tempfile.TemporaryDirectory() as folder:

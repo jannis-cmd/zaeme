@@ -1,0 +1,25 @@
+[Unit]
+Description=Zäme private model and voice gateway
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=zaeme
+Group=zaeme
+WorkingDirectory=/opt/zaeme/current
+EnvironmentFile=/etc/zaeme/runtime.env
+ExecStart=/opt/zaeme/venv/bin/python agents_gateway.py --directory /opt/zaeme/current --bundle /opt/zaeme/current/dist/voice-agent.js --port 4185
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/zaeme
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=256M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

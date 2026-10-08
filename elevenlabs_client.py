@@ -106,7 +106,7 @@ def realtime_token():
 
 def synthesize(text, voice="male"):
     key = api_key()
-    if voice not in {"male", "female"}:
+    if voice not in ("male", "female"):
         raise ValueError("Diese Stimme ist nicht verfügbar.")
     voice_id = (
         os.environ.get("ELEVENLABS_VOICE_ID", "").strip()

@@ -139,6 +139,9 @@ button:disabled { cursor: default; }
 .icon-profile {
   --icon: url("icons/profile-circle.svg");
 }
+.icon-login {
+  --icon: url("icons/log-in.svg");
+}
 .icon-button {
   width: 44px;
   height: 44px;
@@ -261,17 +264,75 @@ button:disabled { cursor: default; }
   background: currentColor;
 }
 .site-header .nav-login {
-  width: 44px;
-  padding: 0;
-  display: grid;
-  place-items: center;
+  min-width: 44px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   color: var(--teal-dark);
   border: 0;
+  border-radius: 22px;
   background: transparent;
+  white-space: nowrap;
+}
+.site-header .nav-login.is-authenticated {
+  width: 44px;
+  padding: 0;
+  background: var(--brand-light);
+}
+.site-header .nav-login:disabled {
+  color: var(--muted);
+  cursor: default;
 }
 .site-header .nav-login .icon {
   width: 25px;
   height: 25px;
+}
+.account-badge {
+  position: absolute;
+  right: -1px;
+  bottom: 0;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  background: var(--teal-dark);
+  color: var(--paper);
+}
+.account-badge[hidden] { display: none; }
+.site-header .nav-login .account-badge .icon { width: 12px; height: 12px; }
+.account-control { position: relative; display: flex; }
+.account-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(280px, calc(100vw - 32px));
+  max-height: calc(100dvh - 140px);
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 8px 28px rgb(46 56 48 / 12%);
+}
+.account-menu[hidden] { display: none; }
+.account-email { margin: 0 0 12px; overflow-wrap: anywhere; font-size: 15px; }
+.site-header nav .account-menu button {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--bg);
+  text-align: left;
+}
+.site-header nav .account-menu button:active { transform: scale(.98); }
+@media (hover: hover) and (pointer: fine) {
+  .site-header nav .account-menu button:hover { background: var(--sand); color: var(--ink); }
 }
 .is-home .site-header nav button:not([data-view="library"]) {
   display: none;

@@ -11,13 +11,13 @@ import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from threading import Lock
+from threading import Lock, Thread
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
-from model_client import CHAT_RULES, GROUP_RULES, PAUSE_RULES, PAUSE_DESCRIPTION, clean_profile, model_api_key
+from model_client import CHAT_RULES, GROUP_RULES, PAUSE_RULES, PAUSE_DESCRIPTION, PERSONA_RULES, clean_profile, model_api_key
 
 CONFIG_DIR = Path.home() / '.config' / 'zaeme'
 CONFIG = Path(os.environ.get('ZAEME_AGENTS_CONFIG', str(CONFIG_DIR / 'agents-test.json')))
@@ -57,7 +57,7 @@ def agent_config(secret_id):
         'name': 'Zäme · Infomaniak',
         'conversation_config': {
             'asr': {'provider': 'scribe_realtime'},
-            'turn': {'turn_eagerness': 'patient', 'turn_timeout': 30,
+            'turn': {'turn_eagerness': 'patient', 'turn_timeout': 15,
                      'silence_end_call_timeout': 120, 'speculative_turn': False},
             'tts': {'voice_id': VOICES['female'], 'model_id': 'eleven_flash_v2_5', 'speed': 0.95},
             'conversation': {'max_duration_seconds': SESSION_SECONDS,
@@ -106,6 +106,91 @@ def setup():
     print('Private agent configured:', config['agent_id'])
 
 
+def setup_persona():
+    """Reuse the existing BYO LLM secret without exporting its value."""
+    config = json.loads(CONFIG.read_text())
+    existing = api('/v1/convai/agents/' + config['agent_id'])
+    body = {
+        'name': 'Zäme · Freundschaftsbuch-Zusammenfassung',
+        'conversation_config': {
+            'conversation': {'text_only': True, 'max_duration_seconds': 60, 'client_events': ['agent_response']},
+            'agent': {'language': 'de', 'first_message': '', 'prompt': {
+                'prompt': PERSONA_RULES, 'llm': 'custom-llm', 'temperature': 0.1, 'max_tokens': 450,
+                'custom_llm': existing['conversation_config']['agent']['prompt']['custom_llm']}},
+        },
+        'platform_settings': {
+            'auth': {'enable_auth': True},
+            'call_limits': {'agent_concurrency_limit': 1, 'daily_limit': 60, 'bursting_enabled': False},
+            'queueing_config': {'enabled': False},
+            'privacy': {'record_voice': False, 'retention_days': 1, 'delete_audio': True},
+        },
+    }
+    if config.get('persona_agent_id'):
+        api('/v1/convai/agents/' + config['persona_agent_id'], body, 'PATCH')
+    else:
+        config['persona_agent_id'] = api('/v1/convai/agents/create', body)['agent_id']
+        save(CONFIG, config)
+    print('Private persona agent configured.')
+
+
+def compile_text(profile):
+    """One server-only text turn, using Infomaniak credentials held by ElevenLabs."""
+    import uuid
+    import websocket
+    with LOCK:
+        config = json.loads(CONFIG.read_text())
+        ledger, remaining = budget()
+        if remaining < 60:
+            raise RuntimeError('Die Zusammenfassung ist gerade nicht verfügbar.')
+        reservation = uuid.uuid4().hex
+        ledger['reservations'][reservation] = {'seconds': 60, 'created': time.time(), 'agent_id': config['persona_agent_id']}
+        save(LEDGER, ledger)
+        url = api('/v1/convai/conversation/get-signed-url?agent_id=' + config['persona_agent_id'])['signed_url']
+    socket = None
+    conversation_id = None
+    try:
+        socket = websocket.create_connection(url, timeout=10, subprotocols=['convai'])
+        socket.settimeout(1)
+        socket.send(json.dumps({'type': 'conversation_initiation_client_data'}))
+        sent = False
+        deadline = time.monotonic() + 45
+        while time.monotonic() < deadline:
+            try:
+                event = json.loads(socket.recv())
+            except websocket.WebSocketTimeoutException:
+                continue
+            if event.get('type') == 'conversation_initiation_metadata':
+                conversation_id = event['conversation_initiation_metadata_event']['conversation_id']
+                if not sent:
+                    socket.send(json.dumps({'type': 'user_message', 'text': json.dumps(profile, ensure_ascii=False)}))
+                    sent = True
+            elif event.get('type') == 'ping':
+                socket.send(json.dumps({'type': 'pong', 'event_id': event['ping_event']['event_id']}))
+            elif event.get('type') == 'agent_response' and sent:
+                text = event.get('agent_response_event', {}).get('agent_response', '')
+                if text:
+                    return text
+            elif event.get('type') in {'error', 'client_error'}:
+                break
+        raise RuntimeError('Die Zusammenfassung ist gerade nicht verfügbar.')
+    except (OSError, ValueError, websocket.WebSocketException):
+        raise RuntimeError('Die Zusammenfassung ist gerade nicht verfügbar.') from None
+    finally:
+        if socket:
+            socket.close(timeout=1)
+            socket.shutdown()
+        if conversation_id:
+            def reconcile():
+                for _ in range(6):
+                    try:
+                        if settle({'conversation_id': conversation_id, 'reservation': reservation}).get('settled'):
+                            break
+                    except (RuntimeError, OSError, ValueError, KeyError):
+                        pass
+                    time.sleep(5)
+            Thread(target=reconcile, daemon=True).start()
+
+
 def period_start(reset):
     end = datetime.fromtimestamp(reset, timezone.utc)
     month = 12 if end.month == 1 else end.month - 1
@@ -148,14 +233,14 @@ def budget():
     return ledger, max(0, allowance - BUFFER_SECONDS - used)
 
 
-def session(data):
+def session(data, transport="webrtc"):
     import uuid
     raw = data.get('profiles')
-    if not isinstance(raw, list) or not 1 <= len(raw) <= 3:
-        raise ValueError('Eine bis drei Personen auswählen.')
+    if not isinstance(raw, list) or not len(raw):
+        raise ValueError('Mindestens eine Person auswählen.')
     profiles = [clean_profile(p, include_notes=True) for p in raw]
     voice = data.get('voice', 'female')
-    if voice not in VOICES:
+    if not isinstance(voice, str) or voice not in VOICES:
         raise ValueError('Ungültige Stimme.')
     with LOCK:
         try:
@@ -167,7 +252,10 @@ def session(data):
             ledger['reservations'][reservation] = {'seconds': SESSION_SECONDS, 'created': time.time()}
             save(LEDGER, ledger)
             try:
-                token = api('/v1/convai/conversation/token?agent_id=' + config['agent_id'])['token']
+                if transport == 'websocket':
+                    credentials = api('/v1/convai/conversation/get-signed-url?agent_id=' + config['agent_id'])
+                else:
+                    credentials = {'token': api('/v1/convai/conversation/token?agent_id=' + config['agent_id'])['token']}
             except Exception:
                 # Keep reservation on ambiguous network errors (token may exist).
                 raise
@@ -175,7 +263,7 @@ def session(data):
             greeting = ('Hallo ' + ', '.join(names[:-1]) + ' und ' + names[-1]
                         + '. Schön seid ihr da. Ich bin Zäme und freue mich auf unser gemeinsames Gespräch.'
                         if len(names) > 1 else 'Hallo, schön bist du da. Ich höre dir zu.')
-            return {'backend': 'agents', 'token': token, 'reservation': reservation,
+            return {'backend': 'agents', **credentials, 'reservation': reservation,
                     'greeting': greeting,
                     'voice_id': VOICES[voice], 'profiles': json.dumps(profiles, ensure_ascii=False),
                     'group_rules': GROUP_RULES if len(profiles) > 1 else '',
@@ -185,19 +273,23 @@ def session(data):
 
 
 def settle(data):
+    reservation_id = data.get('reservation')
+    if not isinstance(reservation_id, str) or len(reservation_id) > 128:
+        raise ValueError('Ungültige Reservierung.')
     conversation_id = str(data.get('conversation_id', ''))
     if not conversation_id.startswith('conv_') or not conversation_id.replace('_', '').isalnum():
         raise ValueError('Ungültiges Gespräch.')
     with LOCK:
         config = json.loads(CONFIG.read_text())
         ledger = json.loads(LEDGER.read_text())
-        reservation = ledger['reservations'].get(data.get('reservation'))
+        reservation = ledger['reservations'].get(reservation_id)
         if not reservation:
             return {'settled': False}
         details = api('/v1/convai/conversations/' + conversation_id)
         if conversation_id in ledger.get('settled_conversations', []):
             return {'settled': False}
-        if details.get('agent_id') != config['agent_id'] or details.get('status') not in {'done', 'failed'}:
+        expected_agent = reservation.get('agent_id', config['agent_id'])
+        if expected_agent not in {config['agent_id'], config.get('persona_agent_id')} or details.get('agent_id') != expected_agent or details.get('status') not in {'done', 'failed'}:
             return {'settled': False}
         metadata = details.get('metadata', {})
         if abs(metadata.get('start_time_unix_secs', 0) - reservation['created']) > 180:
@@ -214,6 +306,9 @@ def settle(data):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--setup', action='store_true')
+    parser.add_argument('--setup-persona', action='store_true')
     args = parser.parse_args()
     if args.setup:
         setup()
+    if args.setup_persona:
+        setup_persona()

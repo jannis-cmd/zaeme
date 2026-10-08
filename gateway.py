@@ -34,6 +34,22 @@ class Gateway(SimpleHTTPRequestHandler):
     speech_used = 0
     realtime_used = 0
 
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(65)
+
+    def take_budget(self, counter, maximum):
+        with self.budget_lock:
+            today = date.today().isoformat()
+            if self.budget_date != today:
+                type(self).budget_date = today
+                for name in ('budget_used', 'transcription_used', 'speech_used', 'realtime_used'):
+                    setattr(type(self), name, 0)
+            if getattr(self, counter) >= maximum:
+                return False
+            setattr(type(self), counter, getattr(self, counter) + 1)
+            return True
+
     def send_head(self):
         # Serve frontend files only, never source, secrets or directory listings (also for HEAD).
         path = unquote(urlsplit(self.path).path).lstrip("/") or "index.html"
@@ -89,20 +105,9 @@ class Gateway(SimpleHTTPRequestHandler):
             if route == "/api/scribe-token":
                 self.handle_realtime_token()
                 return
-            with self.budget_lock:
-                today = date.today().isoformat()
-                if self.budget_date != today:
-                    type(self).budget_date = today
-                    type(self).budget_used = 0
-                    type(self).transcription_used = 0
-                    type(self).speech_used = 0
-                    type(self).realtime_used = 0
-                if self.budget_used >= MAX_DAILY_MODEL_CALLS:
-                    self.send_json(
-                        429, {"error": "Das Tageslimit für die Vorschau ist erreicht."}
-                    )
-                    return
-                type(self).budget_used += 1
+            if not self.take_budget('budget_used', MAX_DAILY_MODEL_CALLS):
+                self.send_json(429, {"error": "Das Tageslimit für die Vorschau ist erreicht."})
+                return
             result = compile_persona(data) if route == "/api/persona" else chat(data)
             self.send_json(200, result)
         except (ValueError, json.JSONDecodeError) as exc:
@@ -127,18 +132,9 @@ class Gateway(SimpleHTTPRequestHandler):
             mime_type = parts[0].get_content_type()
             if not audio or len(audio) > MAX_AUDIO_BODY_BYTES:
                 raise ValueError("Die Aufnahme ist leer oder zu gross.")
-            with self.budget_lock:
-                today = date.today().isoformat()
-                if self.budget_date != today:
-                    type(self).budget_date = today
-                    type(self).budget_used = 0
-                    type(self).transcription_used = 0
-                    type(self).speech_used = 0
-                    type(self).realtime_used = 0
-                if self.transcription_used >= MAX_DAILY_TRANSCRIPTIONS:
-                    self.send_json(429, {"error": "Das Tageslimit für Aufnahmen ist erreicht."})
-                    return
-                type(self).transcription_used += 1
+            if not self.take_budget('transcription_used', MAX_DAILY_TRANSCRIPTIONS):
+                self.send_json(429, {"error": "Das Tageslimit für Aufnahmen ist erreicht."})
+                return
             self.send_json(200, {"text": transcribe(audio, mime_type)})
         except (ValueError, UnicodeError) as exc:
             self.send_json(400, {"error": str(exc)})
@@ -146,21 +142,12 @@ class Gateway(SimpleHTTPRequestHandler):
             self.send_json(503, {"error": str(exc)})
 
     def handle_speech(self, data):
-        if data.get("voice", "male") not in {"male", "female"}:
+        if data.get("voice", "male") not in ("male", "female"):
             self.send_json(400, {"error": "Diese Stimme ist nicht verfügbar."})
             return
-        with self.budget_lock:
-            today = date.today().isoformat()
-            if self.budget_date != today:
-                type(self).budget_date = today
-                type(self).budget_used = 0
-                type(self).transcription_used = 0
-                type(self).speech_used = 0
-                type(self).realtime_used = 0
-            if self.speech_used >= MAX_DAILY_SPEECH_REPLIES:
-                self.send_json(429, {"error": "Das Tageslimit für Sprachausgabe ist erreicht."})
-                return
-            type(self).speech_used += 1
+        if not self.take_budget('speech_used', MAX_DAILY_SPEECH_REPLIES):
+            self.send_json(429, {"error": "Das Tageslimit für Sprachausgabe ist erreicht."})
+            return
         try:
             audio = synthesize(data.get("text"), data.get("voice", "male"))
         except ValueError as exc:
@@ -177,18 +164,9 @@ class Gateway(SimpleHTTPRequestHandler):
         self.wfile.write(audio)
 
     def handle_realtime_token(self):
-        with self.budget_lock:
-            today = date.today().isoformat()
-            if self.budget_date != today:
-                type(self).budget_date = today
-                type(self).budget_used = 0
-                type(self).transcription_used = 0
-                type(self).speech_used = 0
-                type(self).realtime_used = 0
-            if self.realtime_used >= MAX_DAILY_REALTIME_SESSIONS:
-                self.send_json(429, {"error": "Das Tageslimit für Live-Gespräche ist erreicht."})
-                return
-            type(self).realtime_used += 1
+        if not self.take_budget('realtime_used', MAX_DAILY_REALTIME_SESSIONS):
+            self.send_json(429, {"error": "Das Tageslimit für Live-Gespräche ist erreicht."})
+            return
         try:
             self.send_json(200, {"token": realtime_token()})
         except TranscriptionUnavailable as exc:

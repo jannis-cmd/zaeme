@@ -110,9 +110,9 @@ Verschiedene Setups sind möglich, darunter **Modal und Infomaniak** für das KI
 
 Different setups are available, including **Modal and Infomaniak** for the AI model. **ElevenLabs** provides the voice, and an alternative conversation mode remains available as a fallback. The current preview uses Infomaniak.
 
-Profile liegen derzeit lokal im Browser; für KI-Funktionen werden benötigte Inhalte an die eingerichteten Dienste übermittelt. Anmeldung und geräteübergreifende Speicherung fehlen noch. Selbstbetrieb benötigt eigene Dienstzugänge und verursacht laufende Kosten.
+Profile liegen derzeit lokal im Browser; für KI-Funktionen werden benötigte Inhalte an die eingerichteten Dienste übermittelt. Die gehostete Version unterstützt Anmeldung über ZITADEL: ohne Konto eine Person und einmalig fünf Minuten Gesprächszeit; mit Konto keine Personen- oder Gesamtzeitquote. Die Bücher bleiben im jeweiligen Browser; geräteübergreifende Speicherung fehlt noch. Technische Gesprächs- und gemeinsame Dienstlimits bleiben bestehen. Selbstbetrieb benötigt eigene Dienstzugänge und verursacht laufende Kosten.
 
-Profiles currently stay in the browser; AI features send the necessary content to the configured services. Login and cross-device storage are not yet available. Self-hosting requires your own service credentials and incurs running costs.
+Profiles currently stay in the browser; AI features send the necessary content to the configured services. The hosted version supports ZITADEL login: guests can create one person and try five total minutes once per browser; accounts have no person-count or accumulated-time quota. Cross-device storage is not available. Technical call limits and shared service budgets still apply. Self-hosting requires your own service credentials and incurs running costs.
 
 ## Mitgestalten / Get involved
 

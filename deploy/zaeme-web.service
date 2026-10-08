@@ -1,0 +1,25 @@
+[Unit]
+Description=Zäme public authentication and bounded guest voice relay
+After=network-online.target zaeme-gateway.service
+Wants=network-online.target zaeme-gateway.service
+
+[Service]
+User=zaeme
+Group=zaeme
+WorkingDirectory=/opt/zaeme/current
+EnvironmentFile=/etc/zaeme/runtime.env
+ExecStart=/opt/zaeme/venv/bin/gunicorn --bind 172.18.0.1:4186 --workers 1 --threads 16 --timeout 60 --worker-tmp-dir /tmp "web_service:create_app()"
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/zaeme
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=512M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target

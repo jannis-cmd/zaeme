@@ -18,14 +18,9 @@ class AgentsGateway(Gateway):
 
     def send_head(self):
         path = urlsplit(self.path).path
-        if path in ('/', '/index.html', '/voice-agent.js', '/app.js'):
+        if path in ('/', '/index.html', '/voice-agent.js'):
             if path == '/voice-agent.js':
                 body = self.bundle.read_bytes()
-                content_type = 'text/javascript; charset=utf-8'
-            elif path == '/app.js':
-                script = (Path(self.directory) / 'app.js').read_text()
-                script = script.replace('window.addEventListener("pagehide", stopConversation);', 'window.addEventListener("pagehide", () => stopConversation());')
-                body = script.encode()
                 content_type = 'text/javascript; charset=utf-8'
             else:
                 html = (Path(self.directory) / 'index.html').read_text()
@@ -56,7 +51,7 @@ class AgentsGateway(Gateway):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 raise ValueError('Ungültige Anfrage.')
-            result = session(data) if path.endswith('/session') else settle(data)
+            result = session(data, transport=self.headers.get('X-Zaeme-Voice-Transport', 'webrtc')) if path.endswith('/session') else settle(data)
             self.send_json(200, result)
         except (ValueError, json.JSONDecodeError):
             self.send_json(400, {'error': 'Ungültige Anfrage.'})

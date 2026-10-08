@@ -1,5 +1,31 @@
 /* Zäme guest preview. Keep the existing storage key to preserve saved profiles. */
-const STORAGE_KEY = "hearth.guest.v3";
+const AUTH = window.ZAEME_AUTH || { enabled: false, authenticated: false };
+const GUEST_STORAGE_KEY = "hearth.guest.v3";
+const STORAGE_KEY = AUTH.authenticated && AUTH.storage_id
+  ? `zaeme.account.${AUTH.storage_id}.v3` : GUEST_STORAGE_KEY;
+// Move existing guest books into the first account on this browser, once.
+// Subsequent accounts get their own local library; logout reveals no account books.
+if (AUTH.authenticated && AUTH.storage_id) {
+  try {
+    const claimed = localStorage.getItem("zaeme.guest-imported.v1");
+    if (!claimed) {
+      const books = localStorage.getItem(GUEST_STORAGE_KEY) || localStorage.getItem("hearth.guest.v2");
+      if (books) {
+        const existing = localStorage.getItem(STORAGE_KEY);
+        if (existing) {
+          const account = JSON.parse(existing);
+          const guest = JSON.parse(books);
+          if (!Array.isArray(account.people) || !Array.isArray(guest.people)) throw new Error("Invalid library");
+          account.people.push(...guest.people.filter(person => !account.people.some(saved => saved.id === person.id)));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
+        } else localStorage.setItem(STORAGE_KEY, books);
+      }
+      localStorage.setItem("zaeme.guest-imported.v1", AUTH.storage_id);
+      localStorage.removeItem(GUEST_STORAGE_KEY);
+      localStorage.removeItem("hearth.guest.v2");
+    }
+  } catch { /* Keep the original library if browser storage is unavailable. */ }
+}
 const LEGACY_STORAGE_KEY = "hearth.guest.v2";
 const TOUR_KEY = "zaeme.family-tour.v1";
 let tourStep = -1;
@@ -25,7 +51,7 @@ function tourScrollInset() {
 let tourPersonSelected = false;
 const tourPerson = { id: "tour-person", name: "", notes: [], language: "Schweizerdeutsch", address: "Sie" };
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-const LIMITS = Object.freeze({ people: 3, notes: 12, conversationsPerDay: 5 });
+const LIMITS = Object.freeze({ people: AUTH.enabled ? (AUTH.authenticated ? Infinity : 1) : 3, notes: 12, conversationsPerDay: AUTH.enabled ? Infinity : 5 });
 const $ = (id) => document.getElementById(id);
 function brandMentions(element) {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
@@ -65,7 +91,7 @@ function loadState() {
   try {
     const saved = JSON.parse(
       localStorage.getItem(STORAGE_KEY) ||
-        localStorage.getItem(LEGACY_STORAGE_KEY),
+        (AUTH.authenticated ? null : localStorage.getItem(LEGACY_STORAGE_KEY)),
     );
     if (
       (saved?.version === 2 || saved?.version === 3) &&
@@ -80,10 +106,9 @@ function loadState() {
               person.sample
             ),
         )
-        .slice(0, LIMITS.people)
         .map((person, index) => ({
           ...person,
-          bookCover: [0, 1, 2].includes(person.bookCover) ? person.bookCover : index,
+          bookCover: [0, 1, 2].includes(person.bookCover) ? person.bookCover : index % 3,
           notes: Array.isArray(person.notes)
             ? person.notes.slice(-LIMITS.notes)
             : [],
@@ -99,6 +124,7 @@ function loadState() {
       saved.selectedIds = Array.isArray(saved.selectedIds)
         ? [...new Set(saved.selectedIds)].filter((id) => saved.people.some((person) => person.id === id))
         : saved.selectedId ? [saved.selectedId] : [];
+      saved.selectedIds = saved.selectedIds.slice(0, LIMITS.people);
       saved.selectedId = saved.selectedIds[0] || null;
       saved.version = 3;
       saved.voiceGender = saved.voiceGender === "male" ? "male" : "female";
@@ -142,15 +168,16 @@ function currentPerson() {
   return state.people.find((person) => person.id === editingId) || (tourStep >= 0 ? tourPerson : null);
 }
 function selectedPeople() {
-  return state.people.filter((person) => state.selectedIds.includes(person.id) && person.name?.trim());
+  return state.people.filter((person) => state.selectedIds.includes(person.id) && person.name?.trim()).slice(0, LIMITS.people);
 }
 function setSelection(ids) {
-  state.selectedIds = ids;
-  state.selectedId = ids[0] || null;
+  state.selectedIds = ids.slice(-LIMITS.people);
+  state.selectedId = state.selectedIds[0] || null;
   conversationMessages = [];
   conversationPersonId = null;
 }
 function showView(name, touring = false) {
+  closeAccountMenu();
   if (!bookNavigating) bookTransition?.();
   const overlay = $("family-overlay");
   const opening = name !== "home" && overlay.hidden;
@@ -742,7 +769,7 @@ async function startConversation() {
         return;
       }
     }, 250);
-    session.timeout = setTimeout(() => {
+    if (!AUTH.enabled) session.timeout = setTimeout(() => {
       if (conversationState === session) {
         stopConversation();
       }
@@ -874,6 +901,7 @@ function renderLibrary() {
     ? "Zum Gespräch"
     : "Zur Startseite";
   const atLimit = state.people.length >= LIMITS.people;
+  if (AUTH.enabled) $("person-limit-message").textContent = "Ohne Konto ist Platz für eine Person. Mit Anmeldung können Sie weitere Freundschaftsbücher anlegen.";
   $("new-person-button").hidden = atLimit;
   $("person-limit-message").hidden = !atLimit;
   const showingDemo = tourStep >= 0 && tourStep < 2 && !state.people.length;
@@ -960,7 +988,8 @@ function addPerson() {
   if (state.people.length >= LIMITS.people) {
     showDialog(
       "Gastlimit erreicht",
-      `Im Gastmodus können Sie ${LIMITS.people} Personen auf diesem Gerät speichern. Eine Anmeldung mit mehr Profilen folgt in einer späteren Version.`,
+      AUTH.enabled ? "Ohne Konto können Sie eine Person erfassen. Melden Sie sich an, um weitere Freundschaftsbücher anzulegen." : `Im Gastmodus können Sie ${LIMITS.people} Personen auf diesem Gerät speichern.`,
+      AUTH.enabled ? { label: "Anmelden", onConfirm: () => window.location.assign("auth/login") } : undefined,
     );
     return;
   }
@@ -1510,13 +1539,77 @@ for (const choice of document.querySelectorAll('input[name="voice-gender"]')) {
     persist();
   });
 }
-window.addEventListener("pagehide", stopConversation);
-$("login-button").addEventListener("click", () =>
+window.addEventListener("pagehide", () => stopConversation());
+const accountButton = $("login-button");
+accountButton.classList.toggle("is-authenticated", AUTH.authenticated);
+$("account-icon").className = `icon ${AUTH.authenticated ? "icon-profile" : "icon-login"}`;
+$("account-label").hidden = !!AUTH.authenticated;
+$("account-badge").hidden = !AUTH.authenticated;
+accountButton.setAttribute("aria-label", AUTH.authenticated ? "Konto – angemeldet" : "Anmelden");
+accountButton.title = AUTH.authenticated ? "Angemeldet – Konto öffnen" : "Anmelden";
+accountButton.disabled = false;
+accountButton.removeAttribute("aria-busy");
+function closeAccountMenu(restoreFocus = false) {
+  $("account-menu").hidden = true;
+  $("login-button").setAttribute("aria-expanded", "false");
+  if (restoreFocus) $("login-button").focus();
+}
+document.addEventListener("pointerdown", (event) => {
+  if (!event.target.closest(".account-control")) closeAccountMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !$("account-menu").hidden) {
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    closeAccountMenu(true);
+  }
+}, true);
+document.addEventListener("focusin", (event) => {
+  if (!event.target.closest(".account-control")) closeAccountMenu();
+});
+window.addEventListener("resize", () => closeAccountMenu());
+$("logout-button").addEventListener("click", async () => {
+  const button = $("logout-button");
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  stopConversation();
+  try {
+    const response = await fetch("auth/logout", { method: "POST" });
+    if (!response.ok) throw new Error("logout");
+    const result = await response.json();
+    if (result.logout_url) window.location.assign(result.logout_url);
+    else window.location.reload();
+  } catch {
+    closeAccountMenu(true);
+    showDialog("Abmeldung nicht möglich", "Bitte versuchen Sie es nochmals.");
+  } finally {
+    button.disabled = false;
+    button.removeAttribute("aria-busy");
+  }
+});
+$("login-button").addEventListener("click", () => {
+  if (window.ZAEME_AUTH?.enabled) {
+    if (!window.ZAEME_AUTH.authenticated) {
+      window.location.assign("auth/login");
+      return;
+    }
+    const menu = $("account-menu");
+    if (!menu.hidden) { closeAccountMenu(true); return; }
+    $("account-email").textContent = AUTH.email || "Angemeldet";
+    menu.hidden = false;
+    const trigger = $("login-button").getBoundingClientRect();
+    const width = menu.getBoundingClientRect().width;
+    menu.style.left = `${Math.max(16, Math.min(trigger.right - width, window.innerWidth - width - 16)) - trigger.left}px`;
+    menu.style.right = "auto";
+    $("login-button").setAttribute("aria-expanded", "true");
+    $("logout-button").focus({ preventScroll: true });
+    return;
+  }
   showDialog(
     "Anmeldung folgt",
     "In dieser Vorschau gibt es noch keine Konten. Sie können ohne Anmeldung bis zu drei Personen und je zwölf Erinnerungen lokal auf diesem Gerät speichern. Eine spätere Version soll mehrere synchronisierte Profile anbieten.",
-  ),
-);
+  );
+});
 $("donate-button").addEventListener("click", () =>
   showDialog(
     "Spenden noch nicht möglich",

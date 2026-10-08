@@ -28,7 +28,7 @@ There is still no speaker identification. A named addressee is not evidence of w
 
 The prompt favors short contributions and concrete, personal, easy questions, optionally offering two simple alternatives. Zäme follows what someone says, rather than running a question list or asking again for known preferences.
 
-The main ElevenLabs agent uses its existing `turn_timeout=30` and patient turn-taking. After a long pause, the prompt asks it to offer one different profile topic. After continued silence it should use `skip_turn`, and an explicit request for quiet takes precedence. This reuses provider turn-taking instead of adding a competing browser timer. The existing 120-second silence end limit and ten-minute session limit remain in place. The classic fallback receives the same conversational wording, but does not have an automatic idle-topic trigger.
+The main ElevenLabs agent uses `turn_timeout=15` and patient turn-taking. After a long pause, the prompt asks it to offer one different profile topic. After continued silence it should use `skip_turn`, and an explicit request for quiet takes precedence. This reuses provider turn-taking instead of adding a competing browser timer. The existing 120-second silence end limit and ten-minute session limit remain in place. The classic fallback receives the same conversational wording, but does not have an automatic idle-topic trigger.
 
 Synthetic model checks yielded a concrete two-color choice for tulips, a railway question after silence, and silent tool results both after another unanswered topic and after a request for quiet. Model checks are distinct from testing the real audio timeout.
 

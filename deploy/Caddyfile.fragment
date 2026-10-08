@@ -1,0 +1,9 @@
+# Add inside demenzfreundlich-kreis6.ch before its existing website handler.
+# The host web service binds only to the existing Caddy bridge address.
+redir /zaeme /zaeme/ 308
+handle /zaeme/* {
+    reverse_proxy 172.18.0.1:4186
+}
+handle {
+    reverse_proxy demenz_app_main:3000
+}

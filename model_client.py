@@ -132,7 +132,8 @@ def call_model(messages, max_tokens=300, allow_pause=False):
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     url = f"{endpoint}/v1/chat/completions"
     proxy_token = model_api_key() or os.environ.get("ZAEME_MODAL_PROXY_TOKEN", "")
-    for attempt in range(12):
+    # Stay within the front service's request deadline, including one cold-start retry.
+    for attempt in range(2):
         try:
             if proxy_token:
                 request = Request(
@@ -143,7 +144,7 @@ def call_model(messages, max_tokens=300, allow_pause=False):
                         "Authorization": f"Bearer {proxy_token}",
                     },
                 )
-                with urlopen(request, timeout=180) as response:
+                with urlopen(request, timeout=25) as response:
                     result = json.load(response)
             else:
                 process = subprocess.run(
@@ -164,11 +165,11 @@ def call_model(messages, max_tokens=300, allow_pause=False):
                     ],
                     input=body,
                     capture_output=True,
-                    timeout=190,
+                    timeout=25,
                     check=False,
                 )
                 if process.returncode:
-                    if b"503" in process.stderr and attempt < 11:
+                    if b"503" in process.stderr and attempt == 0:
                         time.sleep(5)
                         continue
                     raise ModelUnavailable("Der Modelldienst konnte nicht antworten.")
@@ -187,7 +188,7 @@ def call_model(messages, max_tokens=300, allow_pause=False):
                 raise ModelUnavailable("Das Modell lieferte keine Antwort.")
             return content
         except HTTPError as exc:
-            if exc.code == 503 and attempt < 11:
+            if exc.code == 503 and attempt == 0:
                 time.sleep(5)
                 continue
             raise ModelUnavailable(f"Der Modelldienst antwortete mit HTTP {exc.code}.") from exc
@@ -202,13 +203,20 @@ def compile_persona(data):
     profile = clean_profile(data.get("profile"), include_notes=True)
     if not profile["notes"]:
         raise ValueError("Fügen Sie zuerst eine Erinnerung hinzu.")
-    content = call_model(
-        [
-            {"role": "system", "content": PERSONA_RULES},
-            {"role": "user", "content": json.dumps(profile, ensure_ascii=False)},
-        ],
-        max_tokens=450,
-    )
+    if os.environ.get('ZAEME_PERSONA_VIA_AGENT') == '1':
+        from agents_service import compile_text
+        try:
+            content = compile_text(profile)
+        except (RuntimeError, OSError, KeyError, ValueError):
+            raise ModelUnavailable('Die Zusammenfassung ist gerade nicht verfügbar. Bitte später nochmals versuchen.') from None
+    else:
+        content = call_model(
+            [
+                {"role": "system", "content": PERSONA_RULES},
+                {"role": "user", "content": json.dumps(profile, ensure_ascii=False)},
+            ],
+            max_tokens=450,
+        )
     try:
         parsed = json.loads(content[content.index("{") : content.rindex("}") + 1])
     except (ValueError, json.JSONDecodeError) as exc:
@@ -245,8 +253,8 @@ def compile_persona(data):
 
 def chat(data):
     raw_profiles = data.get("profiles", [data.get("profile")])
-    if not isinstance(raw_profiles, list) or not 1 <= len(raw_profiles) <= 3:
-        raise ValueError("Wählen Sie eine bis drei anwesende Personen aus.")
+    if not isinstance(raw_profiles, list) or not len(raw_profiles):
+        raise ValueError("Wählen Sie mindestens eine anwesende Person aus.")
     profiles = [clean_profile(profile, include_notes=True) for profile in raw_profiles]
     incoming = data.get("messages") or []
     if not isinstance(incoming, list):

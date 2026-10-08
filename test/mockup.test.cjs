@@ -41,7 +41,7 @@ function createPage(setup = () => {}, extraSource = "") {
     dialog.dispatchEvent(new window.Event("close"));
   };
   setup(window);
-  window.eval(js + "\n" + extraSource);
+  window.eval(js + "\nwindow.readState = () => state;\n" + extraSource);
   const $ = (id) => window.document.getElementById(id);
   const click = (id) => $(id).click();
   const input = (id, value) => {
@@ -801,6 +801,79 @@ test("memory bubbles expand independently of editing and collapse with Escape", 
   assert.equal(toggle.getAttribute("aria-expanded"), "false");
   assert.equal(card.classList.contains("is-expanded"), false);
   assert.equal(JSON.stringify(p.stored().people[0].notes), snapshot);
+});
+
+test("account icon opens email and logout menu; Escape and outside click dismiss it", () => {
+  const p = createPage(window => {
+    window.ZAEME_AUTH = { enabled: true, authenticated: true, email: "jannis@example.com" };
+  });
+  p.window.document.querySelector(".home-family-link").click();
+  p.click("login-button");
+  assert.equal(p.$("account-menu").hidden, false);
+  assert.equal(p.$("account-email").textContent, "jannis@example.com");
+  assert.equal(p.$("login-button").getAttribute("aria-expanded"), "true");
+  assert.equal(p.window.document.activeElement, p.$("logout-button"));
+  assert.equal(p.dialog.open, false);
+  p.$("logout-button").dispatchEvent(new p.window.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  assert.equal(p.$("account-menu").hidden, true);
+  assert.equal(p.window.document.activeElement, p.$("login-button"));
+  assert.equal(p.$("family-overlay").hidden, false);
+  p.click("login-button");
+  p.$("person-grid").dispatchEvent(new p.window.Event("pointerdown", { bubbles: true }));
+  assert.equal(p.$("account-menu").hidden, true);
+  assert.equal(p.$("login-button").getAttribute("aria-expanded"), "false");
+});
+
+test("authenticated account without email opens its menu instead of restarting login", () => {
+  const p = createPage(window => {
+    window.ZAEME_AUTH = { enabled: true, authenticated: true, email: "" };
+  });
+  p.window.document.querySelector(".home-family-link").click();
+  p.click("login-button");
+  assert.equal(p.$("account-menu").hidden, false);
+  assert.equal(p.$("account-email").textContent, "Angemeldet");
+  assert.equal(p.$("login-button").getAttribute("aria-expanded"), "true");
+});
+
+test("production guest keeps old books but can select only one and cannot add more", () => {
+  const p = createPage(window => {
+    window.ZAEME_AUTH = { enabled: true, authenticated: false };
+    window.localStorage.setItem("hearth.guest.v3", JSON.stringify({ version: 3, people: [
+      { id: "one", name: "Anna", notes: [] }, { id: "two", name: "Bea", notes: [] },
+    ], selectedIds: ["one", "two"] }));
+  });
+  assert.equal(p.window.readState().people.length, 2);
+  assert.equal(p.window.eval("selectedPeople().length"), 1);
+  p.window.eval('setSelection(["one", "two"])');
+  assert.equal(p.window.eval("selectedPeople()[0].name"), "Bea");
+  p.window.document.querySelector(".home-family-link").click();
+  assert.equal(p.$("new-person-button").hidden, true);
+  assert.match(p.$("person-limit-message").textContent, /eine Person/);
+  assert.equal(p.window.document.querySelectorAll('.person-select[aria-pressed="true"]').length, 1);
+});
+
+test("first account inherits guest books once; other accounts have separate libraries", () => {
+  const p = createPage(window => {
+    window.ZAEME_AUTH = { enabled: true, authenticated: true, storage_id: "first" };
+    window.localStorage.setItem("hearth.guest.v3", JSON.stringify({ version: 3, people: [
+      { id: "one", name: "Anna", notes: [] }, { id: "two", name: "Bea", notes: [] },
+      { id: "three", name: "Carla", notes: [] }, { id: "four", name: "Dora", notes: [] },
+    ], selectedIds: ["one", "two", "three", "four"] }));
+  });
+  assert.equal(p.window.readState().people.length, 4);
+  assert.equal(p.window.eval("selectedPeople().length"), 4);
+  assert.equal(p.window.localStorage.getItem("hearth.guest.v3"), null);
+  const q = createPage(window => {
+    window.ZAEME_AUTH = { enabled: true, authenticated: true, storage_id: "second" };
+    for (let index = 0; index < p.window.localStorage.length; index++) {
+      const key = p.window.localStorage.key(index);
+      window.localStorage.setItem(key, p.window.localStorage.getItem(key));
+    }
+  });
+  assert.equal(q.window.readState().people.length, 0);
+  q.window.eval("addPerson(); addPerson(); addPerson(); addPerson();");
+  assert.equal(q.window.readState().people.length, 4);
+  assert.equal(JSON.parse(q.window.localStorage.getItem("zaeme.account.first.v3")).people[0].name, "Anna");
 });
 
 test("voice availability, sync confirmation, login, and donation states", () => {

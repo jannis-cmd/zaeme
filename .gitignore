@@ -20,8 +20,16 @@ dist/
 # Private runtime state and generated test artifacts.
 /agents-config.json
 /agents-budget.json
-*.sqlite
-*.sqlite3
+*.sqlite*
+*.db
+*.db-*
+*.age
+*.dump
+/backups/
+/auth.json
+/recovery.json
+/runtime.env
+/info.txt
 .pytest_cache/
 .coverage
 htmlcov/

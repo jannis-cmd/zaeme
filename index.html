@@ -9,9 +9,10 @@
       content="Zäme: ein ruhiger Gesprächsmoment, persönlich vorbereitet von Angehörigen."
     />
     <title>Zäme · Ein Gesprächsmoment</title>
-    <link rel="stylesheet" href="styles.css?v=60" />
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=1" />
+    <link rel="stylesheet" href="styles.css?v=62" />
     <link rel="stylesheet" href="donation.css?v=2" />
-    <script src="app.js?v=58" defer></script>
+    <script src="app.js?v=65" defer></script>
     <script src="donation.js?v=2" defer></script>
   </head>
   <body class="is-home">
@@ -40,15 +41,25 @@
             Für Angehörige</button
           ><button type="button" class="nav-link" data-view="donate">
             Spenden</button
-          ></div><button
+          ></div><div class="account-control"><button
             type="button"
             class="nav-login"
             id="login-button"
             aria-label="Konto"
             title="Konto"
+            aria-expanded="false"
+            aria-controls="account-menu"
+            disabled
+            aria-busy="true"
           >
-            <span class="icon icon-profile" aria-hidden="true"></span>
+            <span id="account-icon" class="icon icon-profile" aria-hidden="true"></span>
+            <span id="account-label" hidden>Anmelden</span>
+            <span id="account-badge" class="account-badge" aria-hidden="true" hidden><span class="icon icon-check"></span></span>
           </button>
+          <div class="account-menu" id="account-menu" role="dialog" aria-label="Konto" aria-describedby="account-email" hidden>
+            <p id="account-email" class="account-email"></p>
+            <button type="button" id="logout-button">Abmelden</button>
+          </div></div>
           <button type="button" class="icon-button overlay-close nav-speak" data-view="home" aria-label="Schliessen und zurück zum Sprechen" title="Zurück zum Sprechen"><span class="icon icon-xmark" aria-hidden="true"></span></button>
         </nav>
       </div>
