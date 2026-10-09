@@ -88,8 +88,9 @@ privately. The daily encrypted backup uses a root-owned copy of
 code owned by the app user. Install `age` from the official OS repository and
 configure only the public recipient under `/etc/zaeme-backup/recipient.txt`.
 The hourly backup check uses a root-owned copy of `backup_check.py` and isolated
-Python. Off-server replication and alarm delivery still require operational
-configuration. After restoration reapply revocations and pending deletions before
+Python. Off-server replication still requires operational configuration.
+The root-owned `myna-monitor` service provides Infomaniak SMTP alerts on both
+hosts; keep its recipient/credentials outside the repository. After restoration reapply revocations and pending deletions before
 allowing processing. See the detailed operator runbook.
 
 ## Verification
@@ -117,5 +118,5 @@ The release does not itself supply or approve these operational decisions.
 
 Install `zaeme-privacy-check.timer` alongside the cleanup timer. `--check` fails
 for stale cleanup (>15 minutes) or pending resources/unresolved requests older
-than 24 hours. Systemd status is local monitoring; configure an independently
-operated notification channel separately.
+than 24 hours. Systemd status is local monitoring; the additional `myna-monitor.timer` sends operational alerts. Independent
+whole-host outage detection remains separate.

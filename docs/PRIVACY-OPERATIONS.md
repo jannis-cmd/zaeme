@@ -157,11 +157,13 @@ vorliegt, offene Anbieterressourcen älter als 24 Stunden noch auf Löschung
 warten oder ungeklärte Zuordnungen älter als 24 Stunden bestehen. Ressourcenalter
 meint das Erstellungsdatum, nicht 24 Stunden seit Widerruf. Die zusätzliche
 `zaeme-privacy-check.timer` prüft alle fünf Minuten und macht Fehler im
-Systemd-Dienststatus sichtbar; sie verschickt keine Benachrichtigungen.
+Systemd-Dienststatus sichtbar; sie verschickt selbst keine Benachrichtigungen. Der zusätzliche
+`myna-monitor.timer` prüft ihren Dienststatus und verschickt Betriebsalarme.
  `privacy_admin.py --status`, Timer/Exitstatus und
-Warteschlangen prüfen, Fehler untersuchen und Betriebsnachweise privat führen. Automatische Alarmierung
-ist durch den Timer allein nicht eingerichtet; einen zuständigen Menschen und
-regelmässige Statuskontrolle verbindlich benennen.
+Warteschlangen prüfen, Fehler untersuchen und Betriebsnachweise privat führen. Der zusätzliche `myna-monitor.timer` übernimmt die E-Mail-Alarmierung;
+einen zuständigen Menschen und regelmässige Kontrolle des Alarmwegs verbindlich
+benennen. Ein Ausfall des gesamten Hosts oder des Mailwegs kann damit nicht
+unabhängig erkannt werden.
 Rechtstexte anpassen, wenn Code, Zeiten oder tatsächlicher Betrieb abweichen.
 
 Für Zäme läuft `zaeme-backup.timer` täglich um 03:40 UTC mit bis zu 15 Minuten
@@ -195,7 +197,7 @@ Am 9.10.2026 wurde ein Zäme-Archiv verschlüsselt auf den Betreiber-Mac kopiert
 in-memory entschlüsselt, die SQLite-Integrität geprüft und die Invalidierung
 aller Sessions/Freigaben in einer isolierten Kopie erprobt. Kein Produktivzustand
 wurde zurückgespielt. Die automatisierte unabhängige Replikation, ein vollständiger
-Dienst-Wiederanlauf und die externe Alarmzustellung bleiben offen. Lokale Kopien
+Dienst-Wiederanlauf und ein unabhängiger externer Totalausfall-Monitor bleiben offen. Lokale Kopien
 unterliegen derselben 14-Tage-Richtfrist und müssen beim regelmässigen Betrieb
 ebenfalls bereinigt werden; hierfür läuft noch kein unabhängiger Automatismus.
  Auskunfts-/Löschanfragen auch für enthaltene Daten bewerten. Backups nicht
@@ -270,5 +272,36 @@ lieferte Audio über den authentifizierten Relay; Widerruf schloss die Verbindun
 Beide Anbieter-Testgespräche wurden gelöscht; null offene Löschungen oder
 ungeklärte Zuordnungen blieben zurück. Die zusätzliche Statusprüfung ist aktiv
 und meldete frischen Cleanup sowie keine überfälligen Einträge. Sie liefert lokale
-Systemd-Fehlerzustände, keine externe Alarmzustellung. Echte Profile bleiben in der
+Systemd-Fehlerzustände, selbst keine externe Alarmzustellung. Der später ergänzte Monitor übernimmt
+die E-Mail-Zustellung. Echte Profile bleiben in der
 Produktionskonfiguration deaktiviert; Verträge und DSFA wurden nicht freigegeben.
+
+## Betriebsalarme über Infomaniak
+
+`myna-monitor.timer` läuft auf App- und Auth-Host alle fünf Minuten. Rootgeschütztes
+`/etc/myna-monitor/config.json` enthält SMTP-Zugang, Empfänger und die Dienstliste.
+Kein Empfänger und keine Zugangsdaten gehören ins Repository. Das Programm aus
+`deploy/scripts/monitor.py` wird root:root 0644 nach
+`/usr/local/sbin/myna-monitor` installiert und mit `python3 -I` ausgeführt.
+Der SMTP-Client verwendet ausschliesslich `mail.infomaniak.com:587`, zwingendes
+STARTTLS mit Zertifikatsprüfung und keine Debug-/Antwortprotokollierung.
+
+Überwacht werden aktive App-Dienste und Timer, die Ergebnisse von Lösch-/Backup-
+Prüfungen sowie öffentliche HTTPS-Erreichbarkeit. Erfolgreiche One-shot-Dienste
+müssen nicht dauerhaft aktiv bleiben. Erste und geänderte Störungen melden sich
+sofort, unveränderte frühestens alle sechs Stunden; Entwarnung erfolgt einmal.
+Meldungen enthalten nur feste Dienstbezeichnungen und allgemeine Statuswerte,
+keine Logauszüge, Kennungen, Profile, Stimmen oder Gesprächsinhalte. Nach fehl-
+geschlagenem Versand bleibt die Meldung für einen erneuten Versuch offen.
+
+Am 9.10.2026 wurde die angeforderte Testmail vom SMTP-Server angenommen; ein
+Postfacheingang wurde nicht unabhängig geprüft. SMTP/TLS-Anmeldung wurde auch
+vom App-Host bestätigt. Beide regulären Prüfungen meldeten null Störungen.
+Monitor-Konfigurationen sind in den verschlüsselten Backups enthalten. Nach
+Wiederherstellung die Programme/Units rootgeschützt neu installieren, Zieladresse
+und Zugang prüfen und einen angekündigten Test versenden. Für eine Testnachricht
+im geschützten Operator-Kontext: `python3 -I /usr/local/sbin/myna-monitor --test`.
+
+Dies ersetzt keine unabhängig betriebene Überwachung: Bei vollständigem Host-,
+Netz-, Timer- oder SMTP-Ausfall kann die eigene Meldung ausbleiben. Fehler des
+Monitor-Dienstes in Systemd untersuchen und den Zustellweg regelmässig prüfen.

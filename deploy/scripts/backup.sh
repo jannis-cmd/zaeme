@@ -15,6 +15,7 @@ archive="$output/zaeme-$(date -u +%Y%m%dT%H%M%SZ).tar.gz.age"
 trap 'rm -rf "$stage"; rm -f "$archive.tmp"' EXIT
 mkdir "$stage/config" "$stage/state"
 cp -a /etc/zaeme/. "$stage/config/"
+if [[ -d /etc/myna-monitor ]]; then cp -a /etc/myna-monitor "$stage/operator-monitor"; fi
 python3 -I - "$stage/state/auth.sqlite3" <<'PY'
 import os,sqlite3,sys
 with sqlite3.connect('file:/var/lib/zaeme/auth.sqlite3?mode=ro',uri=True) as source:

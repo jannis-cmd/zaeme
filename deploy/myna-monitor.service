@@ -1,0 +1,21 @@
+[Unit]
+Description=Private operational status alerts through Infomaniak
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/
+ExecStart=/usr/bin/python3 -I /usr/local/sbin/myna-monitor
+UMask=0077
+StateDirectory=myna-monitor
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=64M
+TimeoutStartSec=120

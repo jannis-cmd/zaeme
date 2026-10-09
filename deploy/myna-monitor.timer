@@ -1,0 +1,10 @@
+[Unit]
+Description=Check operational alerts every five minutes
+
+[Timer]
+OnBootSec=4min
+OnUnitActiveSec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
