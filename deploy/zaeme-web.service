@@ -1,5 +1,5 @@
 [Unit]
-Description=Zäme public authentication and bounded guest voice relay
+Description=Zäme public authentication and revocable voice relay
 After=network-online.target zaeme-gateway.service
 Wants=network-online.target zaeme-gateway.service
 

@@ -19,12 +19,12 @@ from flask import Flask, Response, abort, g, jsonify, redirect, request, session
 from flask_sock import Sock
 from threading import Thread
 from guest_access import GuestAccess
+from privacy_store import PrivacyStore, PrivacyError, VERSION
 from security_controls import RequestLimits
 
 ISSUER = 'https://auth.myna-ai.ch'
 SESSION_SECONDS = 7 * 24 * 3600
 COOKIE = 'zaeme_session'
-GUEST_COOKIE = 'zaeme_guest'
 API_ROUTES = {'agents/session', 'agents/settle', 'persona', 'chat', 'transcribe', 'speak', 'scribe-token'}
 
 
@@ -70,6 +70,10 @@ def create_app(config=None):
     guests = GuestAccess(db, config['cookie_secret'])
     limits = RequestLimits(db, config['cookie_secret'], config.get('trusted_proxy_cidrs', []))
     app.extensions['zaeme_guests'] = guests
+    voices = GuestAccess(db, config['cookie_secret'], unlimited=True)
+    privacy = PrivacyStore(database, config['cookie_secret'])
+    app.extensions['zaeme_privacy'] = privacy
+    app.extensions['zaeme_voices'] = voices
     oauth = OAuth(app)
     provider = oauth.register('zitadel', client_id=config['client_id'],
                               client_secret=config['client_secret'],
@@ -84,7 +88,6 @@ def create_app(config=None):
     def identify():
         g.csp_nonce = secrets.token_urlsafe(24)
         g.account = None
-        g.guest_cookie = None
         client = limits.client(request)
         scope = request.path.removeprefix(prefix)
         maximum = {'/auth/login': 10, '/api/agents/session': 18, '/api/persona': 10,
@@ -96,8 +99,6 @@ def create_app(config=None):
             response.status_code = 429
             response.headers['Retry-After'] = '60'
             return response
-        if scope in ('/', '/index.html', '/auth/session') or request.method == 'POST' or scope.startswith('/voice/'):
-            g.guest_cookie = guests.identify(request.cookies.get(GUEST_COOKIE))
         token = request.cookies.get(COOKIE, '')
         if token and len(token) <= 128:
             with db() as connection:
@@ -114,9 +115,6 @@ def create_app(config=None):
 
     @app.after_request
     def secure(response):
-        if getattr(g, 'guest_cookie', None) and request.cookies.get(GUEST_COOKIE) != g.guest_cookie:
-            response.set_cookie(GUEST_COOKIE, g.guest_cookie, max_age=365 * 24 * 3600,
-                                path=prefix + '/', secure=True, httponly=True, samesite='Lax')
         response.headers['Cache-Control'] = 'no-store'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['Referrer-Policy'] = 'no-referrer'
@@ -127,9 +125,7 @@ def create_app(config=None):
             f"script-src 'self' 'nonce-{nonce}' blob:; "
             "style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; "
             "media-src 'self' blob:; worker-src 'self' blob:; "
-            "connect-src 'self' blob: https://api.elevenlabs.io wss://api.elevenlabs.io "
-            "https://*.rtc.elevenlabs.io wss://*.rtc.elevenlabs.io "
-            "https://*.livekit.cloud wss://*.livekit.cloud; form-action 'self'")
+            "connect-src 'self' blob:; form-action 'self'")
         response.headers['Permissions-Policy'] = 'microphone=(self), camera=(), geolocation=(), payment=()'
         return response
 
@@ -195,13 +191,56 @@ def create_app(config=None):
         response.delete_cookie(COOKIE, path=prefix + '/', secure=True, httponly=True, samesite='Lax')
         return response
 
+    def real_allowed():
+        settings = config.get('privacy', {})
+        return bool(g.account and settings.get('real_profiles_enabled') is True
+                    and settings.get('provider_contracts_confirmed') is True
+                    and settings.get('risk_review_approved') is True
+                    and g.account['subject'] in settings.get('approved_subjects', []))
+
+    def context_valid(value):
+        try:
+            privacy.verify_context(value)
+            return True
+        except PrivacyError:
+            return False
+
+    def privacy_owner():
+        return privacy.owner(g.account['subject'])
+
+    @app.route(prefix + '/privacy/<action>', methods=['GET', 'POST'])
+    def privacy_action(action):
+        if not g.account:
+            return jsonify(error='Bitte zuerst anmelden.'), 401
+        owner = privacy_owner()
+        if action == 'export' and request.method == 'GET':
+            return jsonify(**privacy.export(owner))
+        if request.method != 'POST':
+            abort(405)
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict):
+            return jsonify(error='Ungültige Anfrage.'), 400
+        try:
+            if action == 'grant':
+                return jsonify(**privacy.grant(owner, data, real_allowed()))
+            if action in {'revoke', 'delete'}:
+                return jsonify(**privacy.revoke(owner, data.get('book'), delete=action == 'delete'))
+            if action == 'logout-all':
+                with db() as connection:
+                    connection.execute('DELETE FROM sessions WHERE subject=?', (g.account['subject'],))
+                return jsonify(revoked=True)
+        except PrivacyError as exc:
+            return jsonify(error=str(exc)), 403
+        abort(404)
+
     def runtime():
         return {'enabled': True, 'authenticated': bool(g.account),
                 'name': g.account['name'] if g.account else None,
                 'email': g.account['email'] if g.account else None,
                 # Pseudonymous storage namespace, never raw OAuth identifiers.
                 'storage_id': digest(ISSUER + ':' + g.account['subject']) if g.account else None,
-                'guest_seconds': None if g.account else guests.remaining(g.guest_cookie)}
+                'guest_seconds': None, 'login_required': True,
+                'privacy': {'version': VERSION, 'real_allowed': real_allowed(), 'voice_notes': False}}
 
     def settle_guest(conversation_id, reservation):
         def attempt():
@@ -226,7 +265,20 @@ def create_app(config=None):
         if request.headers.get('Origin') != public.scheme + '://' + public.netloc:
             ws.close()
             return
-        guests.relay(ws, ticket, g.guest_cookie, settle_guest)
+        if not g.account:
+            ws.close()
+            return
+        opaque = request.cookies.get(COOKIE, '')
+        real_permission = real_allowed()
+        def allowed(payload):
+            with db() as connection:
+                valid = connection.execute('SELECT 1 FROM sessions WHERE token=? AND expires>?',
+                                           (digest(opaque), int(time.time()))).fetchone()
+            return bool(valid and privacy.active(payload['_owner'], payload['_books'], real_permission))
+        def register(payload, resource):
+            privacy.register(payload['_owner'], payload['_books'], resource, payload['_request'])
+        voices.relay(ws, ticket, opaque, settle_guest, allowed, register,
+                     lambda payload: privacy.start_request(payload['_request']))
 
     @app.route(prefix + '/', defaults={'path': ''})
     @app.route(prefix + '/<path:path>', methods=['GET', 'HEAD', 'POST'])
@@ -244,24 +296,33 @@ def create_app(config=None):
             if route not in API_ROUTES:
                 abort(404)
             if not g.account:
-                if route in {'chat', 'speak', 'scribe-token', 'agents/settle'}:
-                    return jsonify(error='Bitte starten Sie das Gastgespräch über den Sprechknopf.'), 403
-                if route == 'agents/session':
-                    data = request.get_json(silent=True)
-                    if not isinstance(data, dict) or not isinstance(data.get('profiles'), list) or len(data['profiles']) != 1:
-                        return jsonify(error='Ohne Anmeldung kann eine Person am Gespräch teilnehmen.'), 400
-                    try:
-                        ticket = guests.reserve(g.guest_cookie)
-                    except ValueError as exc:
-                        return jsonify(error=str(exc)), 429
-                else:
-                    ticket = None
-            else:
-                ticket = None
+                return jsonify(error='Bitte zuerst anmelden.'), 401
+            # Public deployments deliberately have one controlled voice path.
+            # Separately issued Scribe tokens cannot be withdrawn by this server.
+            if route in {'chat', 'speak', 'scribe-token', 'transcribe'}:
+                return jsonify(error='Diese Sprachschnittstelle ist deaktiviert. Bitte Erinnerungen als Text erfassen.'), 410
+            if route == 'agents/settle':
+                return jsonify(settled=True, managed_by_server=True)
+            data = request.get_json(silent=True)
+            if not isinstance(data, dict):
+                return jsonify(error='Ungültige Anfrage.'), 400
+            profiles = data.get('profiles') if route == 'agents/session' else [data.get('profile')]
+            try:
+                books = privacy.validate(privacy_owner(), profiles, real_allowed())
+                ticket = voices.reserve(voices.identify(request.cookies.get(COOKIE, ''))) if route == 'agents/session' else None
+            except PrivacyError as exc:
+                return jsonify(error=str(exc)), 403
+            except ValueError as exc:
+                return jsonify(error=str(exc)), 429
+            correlation = privacy.prepare_request(privacy_owner(), books)
+            context = privacy.sign_context(privacy_owner(), books, real_allowed(), digest(request.cookies.get(COOKIE, '')), correlation)
         else:
             ticket = None
+            context = None
         # The gateway is an allowlisted static/API server; no client-selected upstream.
         headers = {'Host': public.netloc, 'Origin': public.scheme + '://' + public.netloc}
+        if context:
+            headers['X-Zaeme-Privacy'] = context
         if ticket:
             headers['X-Zaeme-Voice-Transport'] = 'websocket'
         if request.content_type:
@@ -272,22 +333,30 @@ def create_app(config=None):
                                       allow_redirects=False)
         except requests.RequestException:
             if ticket:
-                guests.finish(ticket)
+                voices.finish(ticket)
             return jsonify(error='Zäme ist gerade nicht erreichbar. Bitte später nochmals versuchen.'), 503
         if ticket:
             try:
                 payload = result.json()
                 if result.status_code != 200 or payload.get('backend') != 'agents' or not payload.get('signed_url'):
-                    guests.finish(ticket)
-                    return jsonify(error='Das Gastgespräch ist gerade nicht verfügbar. Bitte später nochmals versuchen.'), 503
-                guests.prepare(ticket, payload)
+                    voices.finish(ticket)
+                    return jsonify(error='Das Gespräch ist gerade nicht verfügbar. Bitte später nochmals versuchen.'), 503
+                if not context_valid(context):
+                    voices.finish(ticket)
+                    return jsonify(error='Die Freigabe wurde widerrufen.'), 403
+                payload['_owner'] = privacy_owner()
+                payload['_books'] = books
+                payload['_request'] = correlation
+                voices.prepare(ticket, payload)
                 return jsonify(backend='agents', signed_url='wss://' + public.netloc + prefix + '/voice/' + ticket,
                                profiles=payload['profiles'], group_rules=payload['group_rules'],
                                greeting=payload['greeting'], voice_id=payload['voice_id'],
-                               max_seconds=guests.remaining(g.guest_cookie), guest=True)
+                               max_seconds=600, guest=False)
             except (ValueError, KeyError):
-                guests.finish(ticket)
-                return jsonify(error='Das Gastgespräch konnte nicht gestartet werden.'), 503
+                voices.finish(ticket)
+                return jsonify(error='Das Gespräch konnte nicht gestartet werden.'), 503
+        if context and not context_valid(context):
+            return jsonify(error='Die Freigabe wurde widerrufen.'), 403
         body = result.content
         content_type = result.headers.get('Content-Type', 'application/octet-stream')
         if path in ('', 'index.html') and result.status_code == 200:

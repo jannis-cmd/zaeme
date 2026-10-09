@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 from gateway import Gateway, MAX_BODY_BYTES
 from agents_service import session, settle
+from privacy_store import upstream_context
 
 
 class AgentsGateway(Gateway):
@@ -51,6 +52,8 @@ class AgentsGateway(Gateway):
             data = json.loads(self.rfile.read(length))
             if not isinstance(data, dict):
                 raise ValueError('Ungültige Anfrage.')
+            if path.endswith('/session'):
+                upstream_context(self.headers.get('X-Zaeme-Privacy'))
             result = session(data, transport=self.headers.get('X-Zaeme-Voice-Transport', 'webrtc')) if path.endswith('/session') else settle(data)
             self.send_json(200, result)
         except (ValueError, json.JSONDecodeError):

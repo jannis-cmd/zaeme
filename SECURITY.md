@@ -25,22 +25,25 @@ Hosting the login locally does not make the audio or model pipeline Swiss-only.
   reverse-proxy addresses. These limits protect request bursts, not accumulated
   conversation time. They are not volumetric DDoS protection.
 
-## Guest voice and costs
+## Authenticated voice and consent
 
-Guests can select one person and try five connected minutes total per browser.
-A server WebSocket relay enforces the deadline and uses single-use, expiring,
-browser-bound tickets. Guests never receive ElevenLabs conversation credentials
-and cannot obtain classic chat, TTS or realtime-Scribe credentials. Pending relay
-payloads are encrypted; expired unused payloads and finished calls are purged on
-the next dynamic request. Clearing cookies or changing browser can reset an
-anonymous identity; this is not a person-level entitlement.
+Hosted processing requires login; there is no anonymous trial. Every selected
+book needs a current account-bound, versioned consent receipt. Real-person
+profiles remain disabled until all documented operator gates are met. Separate
+terms acceptance is required before a book is collected. Summaries require human
+review; hosted voice notes and classic processing routes are disabled.
 
-Signed-in accounts have no person-count or accumulated-time quota. They receive
-short-lived provider conversation credentials. Operator/provider budgets,
-concurrency and technical call duration still apply. Workspace usage and durable
-reservations are conservative cost guards, not guaranteed billing caps. The
-classic fallback has separate costs and restartable in-memory daily counters.
-Configure provider spending limits; do not treat browser controls as boundaries.
+All accounts use the revocable server WebSocket relay, with single-use expiring
+session-bound tickets. Provider credentials stay server-side. Pending relay
+payloads are encrypted; expired unused payloads and finished calls are purged.
+Session and consent revocation stop ongoing relay processing. Random request
+correlation IDs support discovery when provider metadata is lost. A durable worker
+retries deletions; queued or failed requests are never reported as completed.
+
+Accounts have no person-count or accumulated-time quota. Operator/provider
+budgets, concurrency and technical call duration still apply. Workspace usage and
+reservations are conservative cost guards, not guaranteed billing caps. Configure
+provider spending limits. The legacy private preview is not a hosted access path.
 
 ## Profiles, credentials and operations
 
@@ -53,7 +56,7 @@ Configure provider spending limits; do not treat browser controls as boundaries.
   setup. As verified on 9 October 2026, both live agents request one-day retention
   with transcript/PII and audio deletion for future conversations; this does not
   retroactively delete older data or guarantee zero retention or residency.
-  Model-training exclusion at ElevenLabs remains unverified. Never log care text, provider bodies, OAuth callback
+  The operator confirmed training opt-out on 9 October 2026; independent account verification and applicable provider-contract review remain required. Never log care text, provider bodies, OAuth callback
   queries or voice-ticket URLs.
 - Keep long-lived credentials, SQLite databases, ledgers and recovery material
   outside the repository and web root. Use owner-only files and directories,
@@ -77,3 +80,5 @@ GitHub secret scanning/push protection and dependency alerts supplement this rev
 Do not put credentials or personal care data in public issues. Until a private
 security-reporting channel is established, coordinate directly with the maintainer
 before sharing a sensitive report.
+
+See [privacy operations](docs/PRIVACY-OPERATIONS.md) for consent gates, deletion, rights requests, incidents and backup restoration. These controls reduce risk; they do not certify suitability for care or replace a documented risk/contract review.

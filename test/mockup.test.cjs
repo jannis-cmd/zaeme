@@ -31,15 +31,12 @@ function createPage(setup = () => {}, extraSource = "") {
   window.scrollTo = () => {};
   window.localStorage.setItem("zaeme.family-tour.v1", "seen");
   window.HTMLElement.prototype.scrollIntoView = () => {};
+  window.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
+  window.HTMLDialogElement.prototype.close = function (value = "") {
+    this.open = false; this.returnValue = value;
+    this.dispatchEvent(new window.Event("close"));
+  };
   const dialog = window.document.getElementById("app-dialog");
-  dialog.showModal = () => {
-    dialog.open = true;
-  };
-  dialog.close = (value) => {
-    dialog.open = false;
-    dialog.returnValue = value;
-    dialog.dispatchEvent(new window.Event("close"));
-  };
   setup(window);
   window.eval(js + "\nwindow.readState = () => state;\n" + extraSource);
   const $ = (id) => window.document.getElementById(id);
@@ -835,45 +832,41 @@ test("authenticated account without email opens its menu instead of restarting l
   assert.equal(p.$("login-button").getAttribute("aria-expanded"), "true");
 });
 
-test("production guest keeps old books but can select only one and cannot add more", () => {
+test("logged-out public app hides every book and keeps donations reachable", () => {
   const p = createPage(window => {
     window.ZAEME_AUTH = { enabled: true, authenticated: false };
-    window.localStorage.setItem("hearth.guest.v3", JSON.stringify({ version: 3, people: [
-      { id: "one", name: "Anna", notes: [] }, { id: "two", name: "Bea", notes: [] },
-    ], selectedIds: ["one", "two"] }));
+    window.localStorage.setItem("hearth.guest.v3", JSON.stringify({ version: 3,
+      people: [{ id: "one", name: "Anna", notes: [] }], selectedIds: ["one"] }));
   });
-  assert.equal(p.window.readState().people.length, 2);
-  assert.equal(p.window.eval("selectedPeople().length"), 1);
-  p.window.eval('setSelection(["one", "two"])');
-  assert.equal(p.window.eval("selectedPeople()[0].name"), "Bea");
+  assert.equal(p.window.readState().people.length, 0);
   p.window.document.querySelector(".home-family-link").click();
-  assert.equal(p.$("new-person-button").hidden, true);
-  assert.match(p.$("person-limit-message").textContent, /eine Person/);
-  assert.equal(p.window.document.querySelectorAll('.person-select[aria-pressed="true"]').length, 1);
+  assert.equal(p.$("login-gate").hidden, false);
+  assert.equal(p.$("library-private").hidden, true);
+  assert.equal(p.$("person-grid").children.length, 0);
+  assert.equal(p.$("family-tour").hidden, true);
+  p.window.document.querySelector('[data-view="donate"]').click();
+  assert.equal(p.$("donate-view").classList.contains("hidden"), false);
+  assert.equal(JSON.parse(p.window.localStorage.getItem("hearth.guest.v3")).people[0].name, "Anna");
 });
 
-test("first account inherits guest books once; other accounts have separate libraries", () => {
+test("login never imports guest books; account libraries and unlimited book count remain separate", () => {
+  const guest = JSON.stringify({ version: 3, people: [{ id: "guest", name: "Anna", notes: [] }], selectedIds: ["guest"] });
   const p = createPage(window => {
     window.ZAEME_AUTH = { enabled: true, authenticated: true, storage_id: "first" };
-    window.localStorage.setItem("hearth.guest.v3", JSON.stringify({ version: 3, people: [
-      { id: "one", name: "Anna", notes: [] }, { id: "two", name: "Bea", notes: [] },
-      { id: "three", name: "Carla", notes: [] }, { id: "four", name: "Dora", notes: [] },
-    ], selectedIds: ["one", "two", "three", "four"] }));
+    window.localStorage.setItem("hearth.guest.v3", guest);
   });
+  assert.equal(p.window.readState().people.length, 0);
+  assert.equal(p.window.localStorage.getItem("hearth.guest.v3"), guest);
+  p.window.eval('for (let i=0;i<4;i++) addPerson({book:"book-"+i,receipt:"synthetic",version:"2026-10-09.1",role:"fictional"});');
   assert.equal(p.window.readState().people.length, 4);
-  assert.equal(p.window.eval("selectedPeople().length"), 4);
-  assert.equal(p.window.localStorage.getItem("hearth.guest.v3"), null);
   const q = createPage(window => {
     window.ZAEME_AUTH = { enabled: true, authenticated: true, storage_id: "second" };
-    for (let index = 0; index < p.window.localStorage.length; index++) {
-      const key = p.window.localStorage.key(index);
-      window.localStorage.setItem(key, p.window.localStorage.getItem(key));
+    for (let index=0;index<p.window.localStorage.length;index++) {
+      const key=p.window.localStorage.key(index); window.localStorage.setItem(key,p.window.localStorage.getItem(key));
     }
   });
   assert.equal(q.window.readState().people.length, 0);
-  q.window.eval("addPerson(); addPerson(); addPerson(); addPerson();");
-  assert.equal(q.window.readState().people.length, 4);
-  assert.equal(JSON.parse(q.window.localStorage.getItem("zaeme.account.first.v3")).people[0].name, "Anna");
+  assert.equal(JSON.parse(q.window.localStorage.getItem("zaeme.account.first.v3")).people.length, 4);
 });
 
 test("voice availability, sync confirmation, login, and donation states", () => {
@@ -897,7 +890,7 @@ test("voice availability, sync confirmation, login, and donation states", () => 
   assert.match(p.$("donation-payment-note").textContent, /wird noch eingerichtet/);
 });
 
-test("persona refresh uses the model gateway and saves verified response", async () => {
+test("persona refresh requires human review before adopting a model suggestion", async () => {
   let request;
   const p = createPage((window) => {
     window.fetch = async (url, options) => {
@@ -916,11 +909,15 @@ test("persona refresh uses the model gateway and saves verified response", async
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(request.url, "api/persona");
   assert.deepEqual(JSON.parse(request.options.body).profile.notes, ["Ruth mag ihren Garten."]);
-  assert.equal(p.stored().people[0].compiled, "Ruth mag ihren Garten.");
+  assert.equal(p.stored().people[0].compiled, null);
+  assert.equal(p.$("summary-review").open, true);
+  p.$("summary-text").value = "Ich mag meinen Garten.";
+  p.$("summary-form").dispatchEvent(new p.window.Event("submit", { cancelable: true }));
+  assert.equal(p.stored().people[0].compiled, "Ich mag meinen Garten.");
   assert.equal(p.stored().people[0].personaNeedsRefresh, false);
   assert.equal(p.$("compile-button").classList.contains("needs-refresh"), false);
-  assert.equal(p.stored().people[0].name, "Ruth");
-  assert.equal(p.$("compiled-content").querySelector("h4").textContent, "Was ich gerne mache");
+  assert.equal(p.stored().people[0].name, "");
+  assert.equal(p.$("compiled-content").querySelector("h4").textContent, "Meine Geschichte");
   assert.equal(p.$("compiled-content").querySelector("p").textContent, "Ich mag meinen Garten.");
   p.input("note-text", "Eine weitere Erinnerung.");
   p.click("save-note-button");
@@ -1057,4 +1054,44 @@ test("book covers keep their identity through selection, deletion and reload", (
   assert.deepEqual([...reloaded.window.document.querySelectorAll(".person-card")].map(card => card.dataset.cover), ["1", "2"]);
   reloaded.click("new-person-button");
   assert.equal(reloaded.stored().people.at(-1).bookCover, 0);
+});
+
+test("public new book requires an unchecked explicit grant before collecting data", async () => {
+  let requests = 0;
+  const p = createPage(window => {
+    window.ZAEME_AUTH = {enabled:true, authenticated:true, storage_id:"consent", privacy:{version:"2026-10-09.1",real_allowed:false}};
+    window.fetch = async (url, options) => {
+      requests++;
+      assert.equal(url, "privacy/grant");
+      const body=JSON.parse(options.body);
+      assert.equal(body.accepted,true); assert.equal(body.terms,true);
+      assert.equal(body.name,undefined);
+      return {ok:true,json:async()=>({...body,receipt:"synthetic-receipt"})};
+    };
+  });
+  p.click("new-person-button");
+  assert.equal(p.$("consent-dialog").open,true);
+  assert.equal(p.window.readState().people.length,0);
+  assert.equal(p.$("consent-accepted").checked,false);
+  assert.equal(p.$("consent-terms").checked,false);
+  assert.equal(requests,0);
+  p.$("consent-accepted").checked=true; p.$("consent-terms").checked=true;
+  p.$("consent-form").dispatchEvent(new p.window.Event("submit",{cancelable:true}));
+  await new Promise(resolve=>setTimeout(resolve,0));
+  assert.equal(requests,1); assert.equal(p.window.readState().people.length,1);
+  assert.equal(p.window.readState().people[0].privacy.receipt,"synthetic-receipt");
+});
+
+test("offline withdrawal blocks locally and keeps an explicit retry queued", async () => {
+  const p=createPage(window=> {
+    window.ZAEME_AUTH={enabled:true,authenticated:true,storage_id:"offline",privacy:{version:"2026-10-09.1"}};
+    window.fetch=async()=>{throw new Error("offline");};
+  });
+  p.window.eval('addPerson({book:"book",receipt:"synthetic",version:"2026-10-09.1",role:"fictional"});');
+  await p.window.eval('revokeBook(currentPerson())');
+  assert.equal(p.window.readState().people[0].privacy.revoked,true);
+  assert.equal(p.window.readState().privacyPending.length,1);
+  assert.match(p.$("dialog-title").textContent,/noch nicht bestätigt/);
+  assert.equal(p.$("retry-privacy").hidden,false);
+  assert.equal(p.window.eval('hasConsent(currentPerson())'),false);
 });

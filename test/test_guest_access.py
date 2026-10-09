@@ -7,7 +7,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from web_service import create_app
+from web_service import create_app, digest
+from privacy_store import VERSION
 from guest_access import GUEST_SECONDS
 import websocket
 from werkzeug.serving import make_server, WSGIRequestHandler
@@ -147,6 +148,18 @@ class GuestAccessTest(unittest.TestCase):
 
         with patch('guest_access.GUEST_SECONDS', 0.3):
             app = create_app(self.config)
+            self.access = app.extensions['zaeme_voices']
+            self.access.seconds = 0.3
+            self.cookie = self.access.identify('synthetic-session')
+            store = app.extensions['zaeme_privacy']
+            receipt = store.grant(store.owner('synthetic-user'), {'book': 'synthetic-book', 'role': 'fictional',
+                'version': VERSION, 'accepted': True, 'terms': True})
+            self.payload.update(_owner=store.owner('synthetic-user'),
+                _books=[{'id': 'synthetic-book', 'privacy': receipt}],
+                _request=store.prepare_request(store.owner('synthetic-user'), [{'id': 'synthetic-book', 'privacy': receipt}]))
+            with self.access.db() as connection:
+                connection.execute('INSERT INTO sessions(token,subject,name,expires,email) VALUES (?,?,?,?,?)',
+                    (digest(self.cookie), 'synthetic-user', '', int(time.time())+60, ''))
             ticket = self.ticket()
             server = make_server('127.0.0.1', 0, app, threaded=True, request_handler=Quiet)
             thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -157,7 +170,7 @@ class GuestAccessTest(unittest.TestCase):
                         patch('web_service.requests.post'), patch('flask_sock.Server', side_effect=accept_socket):
                     cross_site = original_connect(f'ws://127.0.0.1:{server.server_port}/zaeme/voice/{ticket}',
                         host='example.com', origin='https://evil.example',
-                        cookie='zaeme_guest=' + self.cookie, subprotocols=['convai'], timeout=3)
+                        cookie='zaeme_session=' + self.cookie, subprotocols=['convai'], timeout=3)
                     try:
                         self.assertEqual(cross_site.recv(), '')
                         self.assertEqual(provider.sent, [])
@@ -166,7 +179,7 @@ class GuestAccessTest(unittest.TestCase):
                         cross_site.shutdown()
                     client = original_connect(f'ws://127.0.0.1:{server.server_port}/zaeme/voice/{ticket}',
                         host='example.com', origin='https://example.com',
-                        cookie='zaeme_guest=' + self.cookie, subprotocols=['convai'], timeout=3)
+                        cookie='zaeme_session=' + self.cookie, subprotocols=['convai'], timeout=3)
                     try:
                         client.send(json.dumps({'type': 'conversation_initiation_client_data',
                             'dynamic_variables': {'profiles': 'forged'},
@@ -180,7 +193,7 @@ class GuestAccessTest(unittest.TestCase):
                         client.shutdown()
                     time.sleep(0.05)
                     self.assertTrue(provider.closed)
-                    self.assertEqual(self.access.remaining(self.cookie), 0)
+                    self.assertEqual(self.access.remaining(self.cookie), 0.3)
             finally:
                 server.shutdown()
                 server.server_close()

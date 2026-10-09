@@ -1,47 +1,54 @@
-# ZITADEL login and guest access
+# ZITADEL login and privacy enforcement
 
 The hosted app uses `https://auth.myna-ai.ch` with authorization code, S256 PKCE,
 `client_secret_basic` and `openid profile email`. Infomaniak supplies authentication
-emails and the BYO language model; it is not the identity provider.
+emails and the BYO language model; ZITADEL is the identity provider.
 
 Authlib validates state, signed ID tokens, issuer, audience, expiry and nonce.
-If the ID token omits email, the userinfo endpoint supplies it only after the
-subject has been matched. Missing email never restarts login on an account click.
-OAuth tokens are discarded after validation. Seven-day app sessions use random
-opaque Secure/HttpOnly/SameSite=Lax cookies scoped to `/zaeme/`; only hashes are
-stored in SQLite. Every POST needs the exact public Origin. Logout revokes the
-app session and directs the browser to ZITADEL's end-session endpoint.
+Userinfo must match the validated subject. OAuth tokens are discarded. Seven-day
+app sessions use opaque Secure/HttpOnly/SameSite=Lax cookies scoped to `/zaeme/`;
+SQLite stores only token hashes. POST and voice connections require the exact
+public Origin. Logout revokes the app session and redirects to ZITADEL logout.
+The account menu also offers revocation of all app sessions; this does not sign
+out other applications or automatically disable the ZITADEL account.
 
-## Access rules
+## Access and storage
 
-- Guests can create one book and speak for five minutes total per browser,
-  once, across reloads and days. Existing books are not truncated; guests can
-  select one of them. A server WebSocket relay closes the provider connection
-  at the deadline, counts elapsed connected time, and permits resuming the
-  remaining time. Setup before the relay opens does not consume speaking time;
-  provider connection setup after opening the relay counts toward the allowance.
-- Guests receive an expiring, single-use, browser-bound relay ticket, never an
-  ElevenLabs conversation credential. The relay binds the validated profile and
-  voice. Guests cannot obtain classic-mode tokens or bypass the relay via chat.
-- Logged-in accounts have no application quota for person count or accumulated
-  conversation time. Provider availability, the shared operator budget, existing
-  ten-minute Agent call duration and provider concurrency still apply. A busy
-  provider fails clearly; call queueing remains disabled.
-- An anonymous browser can reset its identity by deleting cookies or using a
-  different browser. This is a trial allowance, not a person-level entitlement.
+Login is mandatory for books, summaries and conversations. The logged-out family
+shell displays a login explanation without profile contents. Donations and legal
+pages remain public. There is no guest trial and no automatic guest-book import.
 
-Books remain in unencrypted localStorage. The first login on an origin moves
-existing guest books into an account-specific local namespace; later accounts
-have separate local libraries. Logout hides account books from the normal UI.
-This prevents accidental account mixing, not access by someone controlling the
-browser or another same-origin script. There is no device synchronization.
-Changing domain does not transfer browser data: old preview books remain on
-the original origin. Keep them there until explicitly migrated or exported.
+Accounts have no person-count or accumulated-time quota. Technical ten-minute
+calls, request-burst limits, shared provider budgets and concurrency still apply.
+All hosted conversations use an expiring, single-use, session-bound server relay
+ticket. The browser never receives an ElevenLabs conversation credential. The
+relay binds validated profile/voice settings, checks consent/session revocation
+throughout the call and tracks provider conversation IDs. Classic chat, speech,
+Scribe and transcription routes are disabled publicly. Missing Agent availability
+fails clearly instead of falling back to an uncontrolled processing path.
+
+New books require explicit, versioned consent and separate acceptance of terms
+before collection. The server binds receipts to account, book and version and
+checks every selected book before provider transfer. Real profiles are disabled
+by default; the operator gates and evidence needed to enable individual accounts
+are described in [privacy operations](PRIVACY-OPERATIONS.md). AI summaries remain
+proposals until a person reviews and accepts them.
+
+Books stay in unencrypted localStorage, separated by account namespace. Logout
+hides them in the normal UI. There is no device synchronization or protection
+against another same-origin script or someone controlling the browser. The
+shared customer website origin remains a risk boundary, not an isolated app.
+Revocation blocks processing; deletion removes the current local book after
+server confirmation and queues associated provider conversations for deletion.
+Offline requests remain visibly pending. Exports and other devices need separate
+handling. The deletion worker retries failures and discovers missing provider
+IDs using random per-request correlation IDs rather than real account IDs.
 
 ## Runtime
 
-Install `requirements-web.txt` and build the SDK with `npm ci && npm run build`.
-Keep secrets outside the source/web root. `ZAEME_AUTH_CONFIG` points to:
+Install `requirements-web.txt` and build with `npm ci && npm run build`.
+Keep all secrets outside source and web roots. Set `ZAEME_AUTH_CONFIG` to the same
+private JSON file for the front service, gateways and privacy worker:
 
 ```json
 {
@@ -54,49 +61,36 @@ Keep secrets outside the source/web root. `ZAEME_AUTH_CONFIG` points to:
 }
 ```
 
+Missing privacy configuration leaves real profiles disabled. Do not copy approval
+flags into an example as if contracts or a risk review had been completed.
 Register only the exact `/zaeme/auth/callback` and post-logout `/zaeme/` URLs.
-Optionally add `trusted_proxy_cidrs` to the private configuration as an array of
-the actual reverse proxy's IP addresses or tightly scoped CIDRs. With the default
-empty array, forwarded headers are ignored. The proxy must overwrite untrusted
-client-supplied forwarded headers. Recheck this setting if its container address
-changes. SQLite stores request-burst counters across restarts; these do not add an
-accumulated-time or person-count quota for accounts. The app permits 240 requests
-per minute per client IP, with lower per-route limits for login, voice setup,
-summaries and transcription. Expired burst counters are pruned after two windows.
+Optional `trusted_proxy_cidrs` must match actual proxies; forwarded headers are
+otherwise ignored. The proxy must overwrite client-supplied forwarded headers.
 
-The front service attaches a fresh nonce to the inline session bootstrap and
-allows only the local app and required voice domains in its CSP. Blob URLs remain
-allowed for SDK audio worklets; inline styles support existing dynamic layout.
+The persona text agent uses the existing ElevenLabs BYO LLM secret: configure
+with `agents_service.py --setup-persona`, then set `ZAEME_PERSONA_VIA_AGENT=1`.
+Hosted summaries fail closed without this controlled agent path. The underlying
+Infomaniak secret is never exported to the browser.
 
-The optional persona text agent reuses the existing ElevenLabs BYO LLM secret:
-run `agents_service.py --setup-persona`, then set `ZAEME_PERSONA_VIA_AGENT=1`.
-Its prompt is the same `PERSONA_RULES` used by the direct model adapter. This
-adds ElevenLabs text-agent processing; the Infomaniak secret is never exported.
-Its one-minute reservation shares the durable workspace usage guard.
-The classic fallback additionally needs its own direct model key. Without that
-key it fails clearly if Agent service/budget is unavailable.
+Install the units from `deploy/`. Both gateways remain private on loopback;
+Gunicorn needs threads for WebSockets. Preserve the `/zaeme/` prefix in Caddy and
+leave other customer website routes unchanged. The privacy timer runs every five
+minutes; install and enable `zaeme-privacy.timer`. Its user needs the auth database
+and provider key. Check `privacy_admin.py --status` and worker failures regularly;
+the timer alone does not provide off-server alerting.
 
-`deploy/` contains systemd units and the Caddy fragment for myna-1. The private
-Agents gateway binds only to loopback. The front service binds to the existing
-Caddy bridge address, with a matching firewall restriction. The prefix must be
-preserved, and all other website routes keep their original handler. No new
-public application port is opened. Run Gunicorn with threads for WebSockets.
-Keep URL/query access logging disabled: OAuth callbacks and relay paths contain
-short-lived credentials. SQLite holds session identifiers, guest usage and
-short-lived encrypted connection payloads, not a permanent profile database.
-Back up `/etc/zaeme` and `/var/lib/zaeme` privately; coordinate reservation state
-when moving the runtime to avoid duplicating outstanding provider reservations.
+The CSP allows same-origin connections and SDK blob worklets. Keep URL/query
+access logging disabled: callbacks and relay paths contain credentials. Never log
+profile content or provider responses. Back up `/etc/zaeme` and `/var/lib/zaeme`
+privately; after restoration reapply revocations and pending deletions before
+allowing processing. See the detailed operator runbook.
 
 ## Verification
 
-Python tests cover signed-token validation, CSRF, logout replay, guest profile
-validation, non-disclosure of provider credentials, durable partial/exhausted
-allowances, expired/replayed/cross-browser tickets and crash accounting.
-JavaScript tests cover production limits, preservation of old books, first-login
-migration and separate account libraries. A real provider login and logout is
-still required to validate the deployed client end to end. Test with invented
-profiles, including a full five-minute trial and pause/resume.
-
-References: [ZITADEL endpoints](https://zitadel.com/docs/apis/openidoauth/endpoints),
-[ElevenLabs chat mode](https://elevenlabs.io/docs/eleven-agents/guides/chat-mode),
-[Flask-Sock deployment](https://flask-sock.readthedocs.io/en/latest/web_servers.html).
+Run `npm test`, the Python unittest suite and `npm run build`. Tests cover OIDC,
+CSRF, login-only processing, account isolation, explicit consent, wrong-owner and
+stale receipts, grouped revocation, session expiry, provider ID discovery and
+retryable deletion. UI tests cover the login gate, consent before collection,
+summary review and offline revocation. Test desktop/mobile layout and a real
+synthetic-profile login/voice/logout separately; mocked tests do not establish
+provider compliance or clinical safety.

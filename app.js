@@ -3,29 +3,12 @@ const AUTH = window.ZAEME_AUTH || { enabled: false, authenticated: false };
 const GUEST_STORAGE_KEY = "hearth.guest.v3";
 const STORAGE_KEY = AUTH.authenticated && AUTH.storage_id
   ? `zaeme.account.${AUTH.storage_id}.v3` : GUEST_STORAGE_KEY;
-// Move existing guest books into the first account on this browser, once.
-// Subsequent accounts get their own local library; logout reveals no account books.
-if (AUTH.authenticated && AUTH.storage_id) {
-  try {
-    const claimed = localStorage.getItem("zaeme.guest-imported.v1");
-    if (!claimed) {
-      const books = localStorage.getItem(GUEST_STORAGE_KEY) || localStorage.getItem("hearth.guest.v2");
-      if (books) {
-        const existing = localStorage.getItem(STORAGE_KEY);
-        if (existing) {
-          const account = JSON.parse(existing);
-          const guest = JSON.parse(books);
-          if (!Array.isArray(account.people) || !Array.isArray(guest.people)) throw new Error("Invalid library");
-          account.people.push(...guest.people.filter(person => !account.people.some(saved => saved.id === person.id)));
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(account));
-        } else localStorage.setItem(STORAGE_KEY, books);
-      }
-      localStorage.setItem("zaeme.guest-imported.v1", AUTH.storage_id);
-      localStorage.removeItem(GUEST_STORAGE_KEY);
-      localStorage.removeItem("hearth.guest.v2");
-    }
-  } catch { /* Keep the original library if browser storage is unavailable. */ }
-}
+// Guest books are never silently assigned to an authenticated account.
+const NEEDS_LOGIN = AUTH.enabled && !AUTH.authenticated;
+const PRIVACY_VERSION = AUTH.privacy?.version || "2026-10-09.1";
+let consentTarget = null;
+let privacyRequest = null;
+let summaryProposal = null;
 const LEGACY_STORAGE_KEY = "hearth.guest.v2";
 const TOUR_KEY = "zaeme.family-tour.v1";
 let tourStep = -1;
@@ -51,7 +34,7 @@ function tourScrollInset() {
 let tourPersonSelected = false;
 const tourPerson = { id: "tour-person", name: "", notes: [], language: "Schweizerdeutsch", address: "Sie" };
 if ("scrollRestoration" in history) history.scrollRestoration = "manual";
-const LIMITS = Object.freeze({ people: AUTH.enabled ? (AUTH.authenticated ? Infinity : 1) : 3, notes: 12, conversationsPerDay: AUTH.enabled ? Infinity : 5 });
+const LIMITS = Object.freeze({ people: AUTH.enabled ? (AUTH.authenticated ? Infinity : 0) : 3, notes: 12, conversationsPerDay: AUTH.enabled ? Infinity : 5 });
 const $ = (id) => document.getElementById(id);
 function brandMentions(element) {
   const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
@@ -88,6 +71,7 @@ const initialState = () => ({
   people: [],
 });
 function loadState() {
+  if (NEEDS_LOGIN) return initialState();
   try {
     const saved = JSON.parse(
       localStorage.getItem(STORAGE_KEY) ||
@@ -153,6 +137,7 @@ function traceConversation(event, details = {}) {
   if (conversationDiagnostics.length > 100) conversationDiagnostics.shift();
 }
 function persist() {
+  if (NEEDS_LOGIN) return false;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     return true;
@@ -177,6 +162,7 @@ function setSelection(ids) {
   conversationPersonId = null;
 }
 function showView(name, touring = false) {
+  if (NEEDS_LOGIN && name === "editor") name = "library";
   closeAccountMenu();
   if (!bookNavigating) bookTransition?.();
   const overlay = $("family-overlay");
@@ -212,7 +198,7 @@ function showView(name, touring = false) {
   if (!touring) scrollSurface().scrollTo({ top: 0, behavior: "instant" });
   if (opening) document.querySelector('.nav-link[data-view="library"]').focus({ preventScroll: true });
   if (name === "home" && overlayOpener) { overlayOpener.focus({ preventScroll: true }); overlayOpener = null; }
-  if (tourStep < 0 && name === "library" && !state.people.some((person) => person.name?.trim())) {
+  if (!NEEDS_LOGIN && tourStep < 0 && name === "library" && !state.people.some((person) => person.name?.trim())) {
     try { if (!localStorage.getItem(TOUR_KEY)) { tourStep = 0; editingId = null; showTourStep(); } } catch { /* Optional help. */ }
   }
 }
@@ -510,14 +496,15 @@ function apiUnavailable(feature) {
 }
 async function compilePersona() {
   const person = currentPerson();
-  if (!person) return;
+  if (!person || !guardBooks([person])) return;
   if (!person.notes.length) {
     showDialog("Noch keine Erinnerungen", "Haltet zuerst eine gemeinsame Erinnerung fest. Auch ein kleines Detail ist ein guter Anfang.");
     return;
   }
   const personId = person.id;
   const notes = person.notes.map((note) => note.text);
-  const noteSnapshot = JSON.stringify(notes);
+  const noteSnapshot = bookRevision(person);
+  const receipt = person.privacy?.receipt;
   const previous = person.compiled;
   const previousPassages = person.passages;
   const button = $("compile-button");
@@ -525,11 +512,15 @@ async function compilePersona() {
   button.setAttribute("aria-busy", "true");
   $("compiled-content").setAttribute("aria-busy", "true");
   try {
+    privacyRequest?.abort();
+    privacyRequest = new AbortController();
     const response = await fetch("api/persona", {
+      signal: privacyRequest.signal,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         profile: {
+          id: person.id, privacy: person.privacy,
           name: person.name,
           age: person.age,
           language: person.language,
@@ -543,24 +534,16 @@ async function compilePersona() {
     if (!response.ok)
       throw new Error(result.error || "Der Modelldienst ist noch nicht verbunden. Bitte versuchen Sie es später erneut.");
     const latest = state.people.find((item) => item.id === personId);
-    if (!latest || JSON.stringify(latest.notes.map((note) => note.text)) !== noteSnapshot)
-      return;
-    latest.compiled = String(result.summary || "").trim().slice(0, 600);
-    if (!latest.compiled) throw new Error("Das Modell lieferte keine Zusammenfassung.");
-    latest.personaNeedsRefresh = false;
-    latest.passages = Array.isArray(result.passages)
-      ? result.passages.slice(0, 4).filter((part) => part && typeof part.title === "string" && typeof part.text === "string")
-        .map((part) => ({ title: part.title.trim().slice(0, 50), text: part.text.trim().slice(0, 400) }))
-        .filter((part) => part.title && part.text)
-      : [];
-    if (!latest.name && result.fields?.name) latest.name = String(result.fields.name).slice(0, 50);
-    if (!latest.age && /^\d{1,3}$/.test(String(result.fields?.age || "")))
-      latest.age = String(result.fields.age);
-    persist();
-    renderHome();
-    if (editingId === personId) renderEditor();
+    if (!latest || bookRevision(latest) !== noteSnapshot || latest.privacy?.receipt !== receipt || latest.privacy?.revoked) return;
+    const summary = String(result.summary || "").trim().slice(0, 600);
+    if (!summary) throw new Error("Das Modell lieferte keine Zusammenfassung.");
+    summaryProposal = { personId, noteSnapshot, receipt };
+    $("summary-text").value = summary;
+    $("summary-review").showModal();
   } catch (error) {
+    if (error.name === "AbortError") return;
     const latest = state.people.find((item) => item.id === personId);
+    if (latest?.privacy?.revoked) return;
     if (latest) { latest.compiled = previous; latest.passages = previousPassages; }
     if (editingId === personId && latest) renderPersona(latest);
     showDialog("Aktualisierung nicht möglich", error.message || "Bitte versuchen Sie es später erneut.");
@@ -624,7 +607,7 @@ function renderHome() {
   }
   $("talk-button").innerHTML = people.length
     ? 'Sprechen <span class="icon icon-microphone" aria-hidden="true"></span>'
-    : '<span class="talk-intro-label">Stell mir jemanden vor</span><span class="icon icon-arrow-right" aria-hidden="true"></span>';
+    : `<span class="talk-intro-label">${NEEDS_LOGIN ? "Zäme kennenlernen" : "Stell mir jemanden vor"}</span><span class="icon icon-arrow-right" aria-hidden="true"></span>`;
   $("talk-button").setAttribute(
     "aria-label",
     people.length ? "Sprechen" : "Stell mir jemanden vor – Personenübersicht öffnen",
@@ -663,6 +646,7 @@ function stopConversation() {
   renderHome();
 }
 async function startConversation() {
+  if (!guardBooks(selectedPeople())) return;
   if (!navigator.mediaDevices?.getUserMedia || !window.AudioContext || !window.AudioWorkletNode || !window.WebSocket) {
     setHomeError();
     return;
@@ -894,6 +878,9 @@ async function runConversation(heard, request, session) {
   }
 }
 function renderLibrary() {
+  $("login-gate").hidden = !NEEDS_LOGIN;
+  $("library-private").hidden = NEEDS_LOGIN;
+  if (NEEDS_LOGIN) { $("person-grid").replaceChildren(); return; }
   document.querySelector(`input[name="voice-gender"][value="${state.voiceGender}"]`).checked = true;
   const grid = $("person-grid");
   grid.replaceChildren();
@@ -983,7 +970,9 @@ function updatePersonSelection(card, person, selected) {
   button.setAttribute("aria-pressed", String(selected));
   button.setAttribute("aria-label", `${person.name || "Neue Person"} ${selected ? "aus dem Gespräch entfernen" : "ins Gespräch aufnehmen"}`);
 }
-function addPerson() {
+function addPerson(privacy = null) {
+  if (NEEDS_LOGIN) { showView("library"); return; }
+  if (AUTH.enabled && !privacy) { showConsent(null); return; }
   if (tourStep >= 0) finishTour(false, false);
   if (state.people.length >= LIMITS.people) {
     showDialog(
@@ -994,7 +983,8 @@ function addPerson() {
     return;
   }
   const person = {
-    id: makeId(),
+    id: privacy?.book || makeId(),
+    privacy,
     bookCover: [0, 1, 2].find(cover => !state.people.some(person => person.bookCover === cover)) ?? 0,
     name: "",
     age: "",
@@ -1033,6 +1023,7 @@ function renderEditor() {
     showView("library");
     return;
   }
+  renderPrivacy(person);
   $("editor-title").textContent = person.name || (person === tourPerson ? "Neue Person" : "Neues Profil");
   $("field-name").value = person.name || "";
   $("field-age").value = person.age || "";
@@ -1202,7 +1193,7 @@ window.addEventListener("resize", () => {
 });
 function saveFields() {
   const person = currentPerson();
-  if (!person) return;
+  if (!person || (AUTH.enabled && !hasConsent(person))) return;
   person.name = $("field-name").value.trim().slice(0, 50);
   person.age =
     $("field-age").value &&
@@ -1227,7 +1218,7 @@ function invalidateCompiled(person) {
 function addOrUpdateNote(event) {
   event.preventDefault();
   const person = currentPerson();
-  if (!person) return;
+  if (!person || (AUTH.enabled && !hasConsent(person))) return;
   const value = $("note-text").value.trim();
   if (!value) return;
   if (noteEditingId) {
@@ -1293,17 +1284,11 @@ function deletePerson() {
   if (!person) return;
   showDialog(
     `${person.name || "Diese Person"} löschen?`,
-    "Das Profil und alle zugehörigen Erinnerungen werden dauerhaft aus diesem Browser entfernt. Das kann nicht rückgängig gemacht werden.",
+    "Dieses Buch und seine Erinnerungen werden aus diesem Browser entfernt. Weitere KI-Verarbeitung wird gesperrt und die Löschung zugeordneter Anbieter-Gespräche beantragt. Gemeinsame Gespräche werden dabei vollständig gelöscht. Kopien auf anderen Geräten müssen dort ebenfalls entfernt werden.",
     {
       danger: true,
       label: "Profil löschen",
-      onConfirm: () => {
-        state.people = state.people.filter((item) => item.id !== person.id);
-        setSelection(state.selectedIds.filter((id) => id !== person.id));
-        editingId = null;
-        persist();
-        showView("library");
-      },
+      onConfirm: () => revokeBook(person, true),
     },
   );
 }
@@ -1339,6 +1324,11 @@ function drawWaveform(session) {
   session.animationFrame = requestAnimationFrame(() => drawWaveform(session));
 }
 async function startRecording() {
+  if (!guardBooks([currentPerson()].filter(Boolean))) return;
+  if (AUTH.enabled && !AUTH.privacy?.voice_notes) {
+    showDialog("Bitte als Text notieren", "Sprachnotizen bleiben bis zur Klärung ihrer Verarbeitung und Löschung deaktiviert. Erinnerungen können Sie weiterhin eintippen.");
+    return;
+  }
   if (recordingState) return;
   if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
     setComposerStatus("Auf diesem Gerät ist keine Mikrofonaufnahme verfügbar.");
@@ -1415,6 +1405,7 @@ function confirmRecording() {
   if (session.recorder.state !== "inactive") session.recorder.stop();
 }
 async function transcribeRecording(audio, session) {
+  if (session.discarded || !guardBooks([currentPerson()].filter(Boolean))) return;
   if (!audio.size) {
     recordingState = null;
     showRecordingStage("idle");
@@ -1472,7 +1463,7 @@ document.querySelectorAll("[data-view]").forEach((button) =>
     else showView(button.dataset.view);
   }),
 );
-$("new-person-button").addEventListener("click", addPerson);
+$("new-person-button").addEventListener("click", () => addPerson());
 $("tour-next").addEventListener("click", () => {
   if (tourStep === 4) morphTourBook(false);
   else if (tourStep === 1) morphTourBook(true);
@@ -1531,7 +1522,7 @@ $("talk-button").addEventListener("click", () => {
     setHomeError("Für heute brauchen wir eine Pause. Morgen können wir wieder miteinander sprechen.");
     return;
   }
-  startConversation();
+  if (guardBooks(selectedPeople())) startConversation();
 });
 for (const choice of document.querySelectorAll('input[name="voice-gender"]')) {
   choice.addEventListener("change", () => {
@@ -1616,6 +1607,161 @@ $("donate-button").addEventListener("click", () =>
     "TWINT ist in dieser Vorschau nicht verbunden. Es wird keine Zahlung ausgelöst. Sobald eine geprüfte Organisation und eine nachvollziehbare Kostenrechnung bereitstehen, soll hier der echte Spendenweg erscheinen.",
   ),
 );
+function hasConsent(person) {
+  return !!person?.privacy?.receipt && person.privacy.version === PRIVACY_VERSION && !person.privacy.revoked;
+}
+function bookRevision(person) {
+  return JSON.stringify([person.name, person.age, person.language, person.address, person.guidance, person.notes]);
+}
+function guardBooks(people) {
+  if (NEEDS_LOGIN) { showView("library"); return false; }
+  if (!AUTH.enabled) return true; // Loopback-only development, never the public entry point.
+  const missing = people.find(person => !hasConsent(person));
+  if (missing) { showConsent(missing); return false; }
+  return people.length > 0;
+}
+function showConsent(person) {
+  consentTarget = { person, book: person?.id || makeId() };
+  const form = $("consent-form");
+  form.reset();
+  $("consent-error").textContent = "";
+  $("consent-title").textContent = person ? "Freigabe für dieses Buch" : "Vor dem ersten Eintrag";
+  $("consent-real-note").hidden = !!AUTH.privacy?.real_allowed;
+  for (const option of $("consent-role").options) option.disabled = option.value !== "fictional" && !AUTH.privacy?.real_allowed;
+  $("consent-role").value = "fictional";
+  $("consent-authority-field").hidden = true;
+  $("consent-authority").required = false;
+  $("consent-dialog").showModal();
+}
+function renderPrivacy(person) {
+  const active = hasConsent(person);
+  $("book-privacy").hidden = !AUTH.enabled || person === tourPerson;
+  $("privacy-status").textContent = active
+    ? (person.privacy.role === "fictional" ? "Freigegeben · erfundenes Profil" : "Für Zäme freigegeben")
+    : person.privacy?.revoked ? "Freigabe widerrufen · keine KI-Verarbeitung" : "Noch nicht freigegeben";
+  $("grant-book").hidden = active;
+  $("revoke-book").hidden = !active;
+  $("retry-privacy").hidden = !(state.privacyPending || []).some(item => item.book === person.id);
+  $("editor-view").querySelector(".editor-grid").inert = AUTH.enabled && !active && person !== tourPerson;
+}
+async function privacyPost(action, data) {
+  const response = await fetch(`privacy/${action}`, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data), keepalive: true });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || "Die Anfrage konnte nicht bestätigt werden. Bitte erneut versuchen.");
+  return result;
+}
+$("gate-login").addEventListener("click", () => window.location.assign("auth/login"));
+$("consent-cancel").addEventListener("click", () => $("consent-dialog").close());
+$("consent-role").addEventListener("change", () => {
+  const represented = $("consent-role").value === "representative";
+  $("consent-authority-field").hidden = !represented;
+  $("consent-authority").required = represented;
+});
+$("consent-form").addEventListener("submit", async event => {
+  event.preventDefault();
+  if (!consentTarget || !$("consent-form").reportValidity()) return;
+  const target = consentTarget;
+  if ((state.privacyPending || []).some(item => item.book === target.book)) { $("consent-error").textContent = "Bitte zuerst die offene Widerrufs- oder Löschanfrage senden."; return; }
+  const button = $("consent-submit");
+  button.disabled = true;
+  button.setAttribute("aria-busy", "true");
+  try {
+    const data = { book: target.book, role: $("consent-role").value, authority: $("consent-authority").value,
+      version: PRIVACY_VERSION, accepted: $("consent-accepted").checked, terms: $("consent-terms").checked };
+    const receipt = await privacyPost("grant", data);
+    if (!$("consent-dialog").open || consentTarget !== target) return;
+    $("consent-dialog").close();
+    if (target.person) { target.person.privacy = receipt; persist(); renderEditor(); }
+    else addPerson(receipt);
+  } catch (error) { $("consent-error").textContent = error.message; }
+  finally { button.disabled = false; button.removeAttribute("aria-busy"); }
+});
+$("grant-book").addEventListener("click", () => showConsent(currentPerson()));
+$("revoke-book").addEventListener("click", () => {
+  const person = currentPerson();
+  showDialog("Freigabe widerrufen?", "Neue KI-Verarbeitung wird gesperrt und ein laufendes Gespräch beendet. Die Löschung zugeordneter Anbieter-Gespräche wird beantragt. Das Buch bleibt zunächst lokal erhalten.",
+    { danger: true, label: "Widerrufen", onConfirm: () => revokeBook(person) });
+});
+async function revokeBook(person, remove = false) {
+  stopConversation();
+  discardRecording();
+  privacyRequest?.abort();
+  summaryProposal = null;
+  if ($("summary-review").open) $("summary-review").close();
+  person.privacy = { ...person.privacy, revoked: true };
+  if (!AUTH.enabled) { if (remove) removeLocalBook(person.id); else persist(); return; }
+  state.privacyPending ||= [];
+  state.privacyPending = state.privacyPending.filter(item => item.book !== person.id);
+  state.privacyPending.push({ book: person.id, remove });
+  persist();
+  if (editingId === person.id) renderPrivacy(person);
+  await flushPrivacyActions(true);
+}
+function removeLocalBook(id) {
+  state.people = state.people.filter(person => person.id !== id);
+  setSelection(state.selectedIds.filter(selected => selected !== id));
+  persist();
+  if (editingId === id) { editingId = null; showView("library"); }
+  renderHome();
+}
+let privacyFlushing = false;
+async function flushPrivacyActions(notify = false) {
+  if (!AUTH.authenticated || privacyFlushing) return;
+  privacyFlushing = true;
+  try {
+    for (const item of [...(state.privacyPending || [])]) {
+      await privacyPost(item.remove ? "delete" : "revoke", { book: item.book });
+      state.privacyPending = state.privacyPending.filter(pending => pending.book !== item.book);
+      if (item.remove) removeLocalBook(item.book);
+      persist();
+    }
+    if (notify) showDialog("Anfrage bestätigt", "Weitere KI-Verarbeitung ist gesperrt. Die Löschung beim Anbieter wurde beantragt. Eine Bestätigung der vollständigen Anbieter-Löschung ist damit noch nicht verbunden. Kopien auf anderen Geräten bitte dort ebenfalls löschen.");
+  } catch (error) {
+    if (notify) showDialog("Widerruf noch nicht bestätigt", "Auf diesem Gerät ist das Buch gesperrt. Der Server ist noch nicht erreicht; andere Geräte könnten weiterarbeiten. Bitte Verbindung herstellen und erneut versuchen oder MYNA unter info@myna-ai.ch kontaktieren. Die Anfrage bleibt für einen erneuten Versuch gespeichert.");
+  } finally { privacyFlushing = false; }
+}
+$("retry-privacy").addEventListener("click", () => flushPrivacyActions(true));
+window.addEventListener("online", () => flushPrivacyActions());
+async function exportBook() {
+  const person = currentPerson();
+  if (!person) return;
+  try {
+    const response = await fetch("privacy/export");
+    if (!response.ok) throw new Error();
+    const server = await response.json();
+    const content = { exported: new Date().toISOString(), book: JSON.parse(JSON.stringify(person)),
+      server: { ...server, grants: server.grants.filter(row => row.book === person.id),
+        events: server.events.filter(row => row.book === person.id),
+        provider_records: server.provider_records.filter(row => JSON.parse(row.books).includes(person.id)) } };
+    // Receipts authorize processing; don't put reusable tokens in an export.
+    delete content.book.privacy?.receipt;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(content, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a"); link.href = url; link.download = "zaeme-freundschaftsbuch.json";
+    link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  } catch { showDialog("Export nicht möglich", "Bitte erneut versuchen. Für Gesprächsinhalte und eine vollständige Datenauskunft kontaktieren Sie info@myna-ai.ch."); }
+}
+$("export-book").addEventListener("click", exportBook);
+$("logout-all-button").addEventListener("click", () => showDialog("Überall bei Zäme abmelden?", "Alle Zäme-Sitzungen dieses Kontos werden beendet. Bücher auf den Geräten und Ihr gemeinsames MYNA-Login bleiben bestehen.",
+  { label: "Überall abmelden", onConfirm: async () => {
+    stopConversation(); discardRecording(); privacyRequest?.abort();
+    try { await privacyPost("logout-all", {}); window.location.reload(); }
+    catch (error) { showDialog("Abmeldung nicht bestätigt", error.message); }
+  } }));
+$("summary-cancel").addEventListener("click", () => { summaryProposal = null; $("summary-review").close(); });
+$("summary-form").addEventListener("submit", event => {
+  event.preventDefault();
+  const proposal = summaryProposal;
+  const person = state.people.find(item => item.id === proposal?.personId);
+  $("summary-review").close(); summaryProposal = null;
+  if (!person || bookRevision(person) !== proposal.noteSnapshot || person.privacy?.receipt !== proposal.receipt || person.privacy?.revoked) return;
+  person.compiled = $("summary-text").value.trim().slice(0, 600);
+  person.passages = [];
+  person.personaNeedsRefresh = !person.compiled;
+  persist();
+  if (editingId === person.id) renderEditor();
+});
+flushPrivacyActions();
 showView("home");
 updateComposerSave();
 const familyContent = document.createElement("div");

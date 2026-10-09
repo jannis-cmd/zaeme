@@ -6,7 +6,7 @@ Run all commands below from the repository root.
 
 Zäme is an open-source prototype of a gentle voice companion for people living with memory difficulties. Its primary screen has one large conversation button. A separate family screen holds profiles and short, editable memories. It is **not** a medical device, a substitute for human care, or an emergency service.
 
-The current website is an **interactive prototype with a hosted account service**. Profiles and text memories work locally. **ElevenLabs Agents is the default conversation mode**, with Infomaniak as its custom LLM. The original Scribe → Infomaniak → speech pipeline remains an automatic budget/unavailability fallback and can also be run explicitly. The hosted entry point adds ZITADEL login and a server-enforced guest trial; see [ZITADEL deployment](ZITADEL-LOGIN.md). Payments are not connected.
+The current website is an **interactive prototype with a hosted account service**. Profiles and text memories work locally. **ElevenLabs Agents is the default conversation mode**, with Infomaniak as its custom LLM. The original Scribe → Infomaniak → speech pipeline is retained only for private development. The hosted entry point requires ZITADEL login, per-book consent and a revocable server voice relay; it disables classic fallback, direct transcription and voice notes; see [ZITADEL deployment](ZITADEL-LOGIN.md). Payments are not connected.
 
 ## Run the website
 
@@ -45,7 +45,7 @@ python3 -m pip install -r requirements-web.txt
 python3 -m unittest discover -s test -p 'test_*.py'
 ```
 
-The first visit starts without a profile. Older preview data is migrated without retaining the fictional default profile; profiles the user created or edited are kept. The app keeps its original `hearth.guest.v3` browser storage key after the rename, so existing profiles and memories survive. A previously selected named profile remains active on reload; otherwise the first saved named profile is selected automatically. The family screen has a direct return to the conversation screen. In the standalone static preview you can (the hosted guest trial allows one person; accounts have no person-count quota):
+The first visit starts without a profile. Older preview data is migrated without retaining the fictional default profile; profiles the user created or edited are kept. The app keeps its original `hearth.guest.v3` browser storage key after the rename, so existing profiles and memories survive. A previously selected named profile remains active on reload; otherwise the first saved named profile is selected automatically. The family screen has a direct return to the conversation screen. In the standalone static preview you can (hosted books require login and consent; accounts have no person-count quota):
 
 - Create, choose, edit, and delete up to three local profiles. Tap booklets to select/deselect multiple people who are present; selected people appear first. Each named selected profile, including bounded saved memories, is sent separately to the model with group-conversation rules. Zäme proactively uses known interests and can yield silently when someone addresses another participant. See [group conversation diagnostics](GROUP-CONVERSATION.md). There is no speaker identification, and changing the selection resets conversation context. An explicitly empty selection stays empty on reload.
 - Add, edit, and delete up to twelve text memories per profile, displayed newest first. Adding a thirteenth removes the oldest. The browser warns when this happens.
@@ -53,11 +53,11 @@ The first visit starts without a profile. Older preview data is migrated without
 - Record and discard a voice note locally. Confirming it sends the audio to the same-origin `api/transcribe` route; with the configured gateway, ElevenLabs Scribe v2 returns editable text to the composer. Saving that text as a memory is a separate action. The static-only preview cannot transcribe. Do not use identifiable recordings in the preview.
 - Tap the main button once to start a live conversation and again to end it. ElevenLabs Agents manages listening, turn-taking, interruptions and spoken replies, using Infomaniak for the model. The classic fallback uses Scribe v2 Realtime, the model API, then speech playback, without interruption support. Both modes show captions and use the global female/male voice choice. Conversation content is never copied into saved profiles or memories. In the static preview, no conversation is sent.
 
-There is no account synchronization. Clearing this browser's site data removes local profiles. The standalone preview illustrates five successful turns per day; the hosted guest trial instead grants five total minutes once per browser. In the standalone preview, failed mockup attempts are not counted. This client-side limit is illustrative, not abuse protection.
+There is no account synchronization. Clearing this browser's site data removes local profiles. The standalone preview illustrates five successful turns per day; the hosted app requires login and has no accumulated-time quota. In the standalone preview, failed mockup attempts are not counted. This client-side limit is illustrative, not abuse protection.
 
 ## Communication principles and evidence
 
-Reviewed on 7 October 2026. The live conversation rules are `CHAT_RULES` in `model_client.py`; `GROUP_RULES` is added for several present people. Sources are documented here, not sent with each request. Profile compilation uses separate rules and is unchanged.
+Reviewed on 7 October 2026. The live conversation rules are `CHAT_RULES` in `model_client.py`; `GROUP_RULES` is added for several present people. Sources are documented here, not sent with each request. Profile compilation uses separate safety rules and requires human review before a proposed summary is adopted.
 
 The aim is to help a person feel heard, respected and free from pressure, not to force cheerfulness or promise a therapeutic benefit. The compact prompt translates these principles into instructions:
 
@@ -81,7 +81,7 @@ Tests check that these instructions reach the model; they do not establish that 
 
 ## What is not connected yet
 
-- A configured live model API is still required for persona compilation. The original notes remain the source of truth. Editing, deleting, or expiring a note invalidates any derived summary.
+- Hosted persona compilation uses the configured ElevenLabs text agent and the existing BYO LLM secret; private direct compilation requires its own model API. The original notes remain the source of truth. Editing, deleting, or expiring a note invalidates any derived summary.
 - Production-safe voice service and a validated Swiss German experience. The private preview currently uses Infomaniak Gemma 4 for text and ElevenLabs for audio, but this does not make it suitable for identifiable care data or public access. A fresh installation needs its own provider credentials.
 - Cross-device storage. Hosted login is available through ZITADEL; it separates local account libraries but does not sync them.
 - TWINT donations or a live budget. The donation page currently shows explicitly labelled demo figures, not actual donations or costs. Payments stay disabled in demo mode.
@@ -101,3 +101,7 @@ The palette takes its colours from [Demenzfreundlich Kreis 6](https://demenzfreu
 Source code is under the [MIT license](../LICENSE). There are no proprietary frontend packages, no trackers, and no committed credentials. Contributions should preserve the distinction between verified profile facts and model-generated suggestions, and between real financial data and placeholders.
 
 Before any use with real people or identifiable care information, involve people living with dementia and care partners in testing, assess accessibility and consent, and complete a privacy/security review. See the original [Alzheimer's Society communication guidance](https://www.alzheimers.org.uk/about-dementia/stages-and-symptoms/dementia-symptoms/how-to-communicate-dementia) for the conversational principles behind the earlier backend prompt.
+
+## Hosted privacy boundary
+
+Private preview capabilities above are not public access rules. The hosted front requires login for every processing endpoint, validates every selected book against server consent, and disables classic/Scribe routes. Missing signed internal consent context fails closed when `ZAEME_AUTH_CONFIG` is set. Configure that variable for both gateways and the privacy worker. Guest storage is not imported automatically. All hosted voice uses the same-origin relay; provider credentials never reach the browser. See [login deployment](ZITADEL-LOGIN.md) and [privacy operations](PRIVACY-OPERATIONS.md).

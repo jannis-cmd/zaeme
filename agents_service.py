@@ -135,10 +135,13 @@ def setup_persona():
     print('Private persona agent configured.')
 
 
-def compile_text(profile):
+def compile_text(profile, *, on_conversation=None, allowed=None, on_start=None, correlation=None):
     """One server-only text turn, using Infomaniak credentials held by ElevenLabs."""
     import uuid
     import websocket
+    allowed = allowed or (lambda: True)
+    if not allowed():
+        raise RuntimeError('Die Freigabe wurde widerrufen.')
     with LOCK:
         config = json.loads(CONFIG.read_text())
         ledger, remaining = budget()
@@ -153,16 +156,25 @@ def compile_text(profile):
     try:
         socket = websocket.create_connection(url, timeout=10, subprotocols=['convai'])
         socket.settimeout(1)
-        socket.send(json.dumps({'type': 'conversation_initiation_client_data'}))
+        if on_start:
+            on_start()
+        initiation = {'type': 'conversation_initiation_client_data'}
+        if correlation:
+            initiation['user_id'] = correlation
+        socket.send(json.dumps(initiation))
         sent = False
         deadline = time.monotonic() + 45
-        while time.monotonic() < deadline:
+        while time.monotonic() < deadline and allowed():
             try:
                 event = json.loads(socket.recv())
             except websocket.WebSocketTimeoutException:
                 continue
             if event.get('type') == 'conversation_initiation_metadata':
                 conversation_id = event['conversation_initiation_metadata_event']['conversation_id']
+                if on_conversation:
+                    on_conversation(conversation_id)
+                if not allowed():
+                    raise RuntimeError('Die Freigabe wurde widerrufen.')
                 if not sent:
                     socket.send(json.dumps({'type': 'user_message', 'text': json.dumps(profile, ensure_ascii=False)}))
                     sent = True
@@ -170,7 +182,7 @@ def compile_text(profile):
                 socket.send(json.dumps({'type': 'pong', 'event_id': event['ping_event']['event_id']}))
             elif event.get('type') == 'agent_response' and sent:
                 text = event.get('agent_response_event', {}).get('agent_response', '')
-                if text:
+                if text and allowed():
                     return text
             elif event.get('type') in {'error', 'client_error'}:
                 break

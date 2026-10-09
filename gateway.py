@@ -17,6 +17,7 @@ from urllib.parse import unquote, urlsplit
 
 from elevenlabs_client import TranscriptionUnavailable, api_key, realtime_token, synthesize, transcribe
 from model_client import ModelUnavailable, chat, compile_persona, model_ready
+from privacy_store import upstream_context, PrivacyError
 
 
 MAX_BODY_BYTES = 32_768
@@ -54,7 +55,7 @@ class Gateway(SimpleHTTPRequestHandler):
     def send_head(self):
         # Serve frontend files only, never source, secrets or directory listings (also for HEAD).
         path = unquote(urlsplit(self.path).path).lstrip("/") or "index.html"
-        legal_pages = {"impressum": "impressum.html", "datenschutz": "datenschutz.html"}
+        legal_pages = {"impressum": "impressum.html", "datenschutz": "datenschutz.html", "nutzungsbedingungen": "nutzungsbedingungen.html"}
         if path in legal_pages:
             with open(os.path.join(self.directory, legal_pages[path]), "rb") as page:
                 body = page.read()
@@ -64,7 +65,7 @@ class Gateway(SimpleHTTPRequestHandler):
             self.send_header("Cache-Control", "no-store")
             self.end_headers()
             return BytesIO(body)
-        public_files = {"impressum.html", "datenschutz.html", "legal.css", "index.html", "app.js", "styles.css", "capture-worklet.js", "donation.js", "donation.css", "donation.json"}
+        public_files = {"impressum.html", "datenschutz.html", "nutzungsbedingungen.html", "legal.css", "index.html", "app.js", "styles.css", "capture-worklet.js", "donation.js", "donation.css", "donation.json"}
         asset = path.startswith(("icons/", "fonts/", "assets/")) and path.endswith((".svg", ".png", ".woff2"))
         parts = path.split("/")
         root = os.path.realpath(self.directory)
@@ -104,6 +105,7 @@ class Gateway(SimpleHTTPRequestHandler):
             self.send_json(413, {"error": "Die Anfrage ist zu gross."})
             return
         try:
+            store, context = upstream_context(self.headers.get('X-Zaeme-Privacy'))
             if route == "/api/transcribe":
                 self.handle_transcription(length)
                 return
@@ -119,7 +121,15 @@ class Gateway(SimpleHTTPRequestHandler):
             if not self.take_budget('budget_used', MAX_DAILY_MODEL_CALLS):
                 self.send_json(429, {"error": "Das Tageslimit für die Vorschau ist erreicht."})
                 return
-            result = compile_persona(data) if route == "/api/persona" else chat(data)
+            if route == '/api/persona' and context:
+                if os.environ.get('ZAEME_PERSONA_VIA_AGENT') != '1':
+                    raise ModelUnavailable('Die überprüfte Zusammenfassung ist gerade nicht verfügbar.')
+                result = compile_persona(data,
+                    on_conversation=lambda resource: store.register(context['owner'], context['books'], resource, context['request']),
+                    on_start=lambda: store.start_request(context['request']), correlation=context['request'],
+                    allowed=lambda: store.context_active(context))
+            else:
+                result = compile_persona(data) if route == "/api/persona" else chat(data)
             self.send_json(200, result)
         except (ValueError, json.JSONDecodeError) as exc:
             self.send_json(400, {"error": str(exc)})

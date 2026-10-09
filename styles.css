@@ -1241,3 +1241,30 @@ body:not(.is-home) .talk-button::before { animation-play-state: paused; }
 .privacy-test-note a { color: var(--teal-dark); }
 .site-footer .footer-legal { display: flex; flex-basis: 100%; align-items: center; flex-wrap: wrap; gap: 8px 24px; }
 .footer-legal a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; }
+
+/* Privacy controls use the existing paper, ink and teal palette. */
+.home-disclosure { margin: 0 0 24px; color: var(--muted); font-size: 16px; line-height: 1.5; }
+.login-gate { max-width: 580px; margin: clamp(32px, 10vh, 96px) auto; padding: 32px; border-radius: 16px; background: var(--paper); box-shadow: 0 12px 32px #203d2b18; }
+.login-gate h1 { margin: 0 0 16px; font-size: clamp(28px, 4vw, 36px); line-height: 1.2; }
+.login-gate p { line-height: 1.65; margin: 0 0 24px; }
+.login-gate .login-gate-links { margin: 24px 0 0; font-size: 15px; }
+.login-gate a, .book-privacy a, .privacy-dialog a { color: var(--teal-dark); text-underline-offset: 3px; }
+.book-privacy { padding: 0 0 24px; margin-bottom: 24px; border-bottom: 1px solid var(--line); }
+.book-privacy > p:first-child { font-weight: 700; margin: 0 0 12px; }
+.privacy-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.privacy-actions .button { min-height: 44px; height: auto; padding: 10px 14px; }
+.privacy-help, .privacy-entry-note { font-size: 15px; line-height: 1.6; color: var(--muted); }
+.privacy-help { margin: 12px 0 0; max-width: 72ch; }
+.privacy-entry-note { margin: 24px 0 12px; }
+.privacy-dialog { width: min(620px, calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow-y: auto; }
+.privacy-dialog p { font-size: 16px; }
+#consent-information p + p { margin-top: 12px; }
+#consent-real-note { margin-top: 16px; font-weight: 700; color: var(--ink); }
+.consent-field { display: grid; gap: 8px; margin-top: 24px; font-size: 16px; font-weight: 600; }
+.consent-field select, .consent-field textarea { width: 100%; min-height: 44px; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); }
+.consent-field span { font-weight: 400; font-size: 15px; line-height: 1.6; }
+.consent-check { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; margin-top: 24px; font-size: 16px; line-height: 1.6; }
+.consent-check input { width: 24px; height: 24px; margin: 2px 0 0; accent-color: var(--teal-dark); }
+#consent-error { color: var(--danger); margin-top: 16px; }
+.privacy-dialog .dialog-actions { flex-wrap: wrap; }
+@media (max-width: 600px) { .login-gate { margin: 24px 0; padding: 24px; } .login-gate .button { width: 100%; height: auto; min-height: 52px; } .privacy-dialog form { padding: 24px; } }

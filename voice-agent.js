@@ -36,6 +36,7 @@ stopConversation = function () {
 };
 
 startConversation = async function () {
+  if (!guardBooks(selectedPeople())) return;
   const request = ++conversationRequest;
   conversationConnecting = true;
   setTalkState('thinking');
@@ -52,6 +53,7 @@ startConversation = async function () {
     if (!response.ok) throw new Error(config.error || 'Das Gespräch konnte nicht gestartet werden.');
     if (request !== conversationRequest) return;
     if (config.backend !== 'agents') {
+      if (AUTH.enabled) throw new Error('Der überprüfte Gesprächsdienst ist gerade nicht verfügbar. Bitte später erneut versuchen.');
       document.documentElement.dataset.voiceBackend = 'classic';
       conversationConnecting = false;
       await classicStart();

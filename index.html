@@ -10,9 +10,9 @@
     />
     <title>Zäme · Ein Gesprächsmoment</title>
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=1" />
-    <link rel="stylesheet" href="styles.css?v=63" />
+    <link rel="stylesheet" href="styles.css?v=64" />
     <link rel="stylesheet" href="donation.css?v=2" />
-    <script src="app.js?v=65" defer></script>
+    <script src="app.js?v=66" defer></script>
     <script src="donation.js?v=2" defer></script>
   </head>
   <body class="is-home">
@@ -59,6 +59,7 @@
           <div class="account-menu" id="account-menu" role="dialog" aria-label="Konto" aria-describedby="account-email" hidden>
             <p id="account-email" class="account-email"></p>
             <button type="button" id="logout-button">Abmelden</button>
+            <button type="button" id="logout-all-button">Überall bei Zäme abmelden</button>
           </div></div>
           <button type="button" class="icon-button overlay-close nav-speak" data-view="home" aria-label="Schliessen und zurück zum Sprechen" title="Zurück zum Sprechen"><span class="icon icon-xmark" aria-hidden="true"></span></button>
         </nav>
@@ -73,6 +74,7 @@
       >
         <div class="home-center">
           <h1 id="home-title" hidden></h1>
+          <p class="home-disclosure">Du sprichst mit einer KI.</p>
           <button type="button" class="talk-button" id="talk-button">
             <span class="talk-intro-label">Stell mir jemanden vor</span>
             <span class="icon icon-arrow-right" aria-hidden="true"></span>
@@ -88,6 +90,13 @@
         id="library-view"
         aria-labelledby="library-title"
       >
+        <section id="login-gate" class="login-gate" aria-labelledby="login-gate-title" hidden>
+          <h1 id="login-gate-title">Bitte zuerst anmelden</h1>
+          <p>Mit deinem Konto bleiben Freigaben und Datenanfragen eindeutig zugeordnet. Deine Freundschaftsbücher bleiben auf diesem Gerät und werden nicht zwischen Geräten synchronisiert.</p>
+          <button id="gate-login" class="button button-primary" type="button">Anmelden oder Konto erstellen</button>
+          <p class="login-gate-links"><a href="datenschutz" target="_blank" rel="noopener noreferrer">Datenschutz</a> · <a href="nutzungsbedingungen" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen</a></p>
+        </section>
+        <div id="library-private">
         <button
           class="back-button library-back"
           id="library-home"
@@ -131,6 +140,7 @@
           </div>
         </fieldset>
         </section>
+        </div>
       </section>
       <section
         class="view page-view editor-view hidden"
@@ -146,6 +156,16 @@
             <span class="icon icon-trash" aria-hidden="true"></span>
           </button>
         </div>
+        <section id="book-privacy" class="book-privacy" aria-label="Freigabe und Daten dieses Buchs" hidden>
+          <p id="privacy-status" role="status"></p>
+          <div class="privacy-actions">
+            <button id="grant-book" type="button" class="button button-quiet">Freigeben</button>
+            <button id="revoke-book" type="button" class="button button-quiet">Freigabe widerrufen</button>
+            <button id="export-book" type="button" class="button button-quiet">Daten exportieren</button>
+            <button id="retry-privacy" type="button" class="button button-quiet">Offene Anfrage erneut senden</button>
+          </div>
+          <p class="privacy-help">Für Auskunft, Kontolöschung oder Fragen zur Vertretung: <a href="mailto:info@myna-ai.ch">info@myna-ai.ch</a>. Ein Widerruf betrifft auch zugeordnete gemeinsame Gespräche.</p>
+        </section>
         <div class="editor-grid">
           <section
             class="editor-panel profile-panel"
@@ -182,6 +202,7 @@
                 </select></label
               >
             </div>
+            <p class="privacy-entry-note">Bitte nur hilfreiche Interessen und Erinnerungen festhalten. Keine Diagnosen, Medikamente, medizinischen Unterlagen, intimen Angaben oder Zugangsdaten.</p>
             <label class="wide-field"
               >Für gute Gespräche
               <textarea
@@ -356,7 +377,7 @@
         >Demenzfreundlich Kreis 6
         <span class="icon icon-arrow-up-right" aria-hidden="true"></span
       ></a>
-      <nav class="footer-legal" aria-label="Rechtliches für Zäme"><span>Betreiber: MYNA</span><a href="impressum" target="_blank" rel="noopener noreferrer">Impressum</a><a href="datenschutz" target="_blank" rel="noopener noreferrer">Datenschutz</a></nav>
+      <nav class="footer-legal" aria-label="Rechtliches für Zäme"><span>Betreiber: MYNA</span><a href="impressum" target="_blank" rel="noopener noreferrer">Impressum</a><a href="datenschutz" target="_blank" rel="noopener noreferrer">Datenschutz</a><a href="nutzungsbedingungen" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen</a></nav>
     </footer>
     <aside id="family-tour" class="family-tour" aria-labelledby="tour-title" hidden>
       <button id="tour-skip" class="icon-button tour-skip" type="button" aria-label="Einführung überspringen" title="Einführung überspringen"><span class="icon icon-xmark" aria-hidden="true"></span></button>
@@ -375,6 +396,41 @@
             Verstanden
           </button>
         </div>
+      </form>
+    </dialog>
+    <dialog id="consent-dialog" class="app-dialog privacy-dialog" aria-labelledby="consent-title" aria-describedby="consent-information">
+      <form id="consent-form">
+        <h2 id="consent-title">Vor dem ersten Eintrag</h2>
+        <div id="consent-information">
+          <p>Zäme ist ein KI-Gesprächsangebot von MYNA für Erwachsene. Es ersetzt keine Betreuung, medizinische Beratung oder Hilfe im Notfall. Gespräche werden nicht von einer Betreuungsperson überwacht.</p>
+          <p>Dieses Buch wird unverschlüsselt im Browser gespeichert. Für Gespräche und Zusammenfassungen werden ausgewählte Buchinhalte und Sprache durch ElevenLabs und Infomaniak verarbeitet, teilweise im Ausland. Andere Personen im selben Browser können lokale Bücher möglicherweise lesen.</p>
+          <p>Bitte keine Diagnosen, Medikamente, intimen Angaben oder Zugangsdaten erfassen. Auch unbeabsichtigte sensible Gesprächsinhalte können technisch verarbeitet werden. Eine Mikrofonfreigabe allein ist keine Zustimmung für andere Anwesende.</p>
+          <p>Die Freigabe kann jederzeit für die Zukunft widerrufen werden. Einzelheiten zu Anbietern, Ländern, Aufbewahrung und Löschung stehen in der <a href="datenschutz" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a>.</p>
+        </div>
+        <p id="consent-real-note">Aktuell sind nur erfundene Profile freigegeben. Echte Profile benötigen zusätzlich die Betriebsfreigabe durch MYNA.</p>
+        <label class="consent-field">Für wen wird dieses Buch erstellt?
+          <select id="consent-role" required>
+            <option value="fictional">Erfundene Person zum Testen</option>
+            <option value="self">Die erwachsene Person stimmt selbst zu</option>
+            <option value="representative">Ich handle als befugte Vertretung</option>
+          </select>
+        </label>
+        <label id="consent-authority-field" class="consent-field" hidden>Grundlage der Vertretung
+          <select id="consent-authority"><option value="">Bitte auswählen</option><option value="mandate">Wirksamer Auftrag / Vollmacht für diese Entscheidung</option><option value="deputy">Beistandschaft mit passendem Aufgabenbereich</option><option value="other">Andere geklärte gesetzliche Befugnis</option></select>
+          <span>Angehörigenstatus allein genügt nicht. Bei Unsicherheit zuerst MYNA kontaktieren. Keine Ausweiskopien oder Gesundheitsunterlagen hier hochladen.</span>
+        </label>
+        <label class="consent-check"><input id="consent-accepted" type="checkbox" required><span>Ich bestätige: Die Person hat diese Information verstanden und freiwillig ausdrücklich zugestimmt, oder ich bin für diese Entscheidung tatsächlich vertretungsbefugt und stimme zu. Bei einem erfundenen Profil bestätige ich, dass keine echten Personen beschrieben werden. Ablehnung oder ein Wunsch nach Stopp werden respektiert.</span></label>
+        <label class="consent-check"><input id="consent-terms" type="checkbox" required><span>Ich akzeptiere die <a href="nutzungsbedingungen" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen</a> für Zäme.</span></label>
+        <p id="consent-error" role="alert"></p>
+        <div class="dialog-actions"><button id="consent-cancel" class="button button-quiet" type="button">Abbrechen</button><button id="consent-submit" class="button button-primary" type="submit">Freigeben</button></div>
+      </form>
+    </dialog>
+    <dialog id="summary-review" class="app-dialog privacy-dialog" aria-labelledby="summary-title">
+      <form id="summary-form">
+        <h2 id="summary-title">Zusammenfassung prüfen</h2>
+        <p>Dies ist ein KI-Vorschlag. Bitte Fehler, Diagnosen und andere sensible Angaben entfernen. Erst nach deiner Bestätigung wird der Text ins Buch übernommen.</p>
+        <label class="consent-field">Vorschlag<textarea id="summary-text" rows="7" maxlength="600"></textarea></label>
+        <div class="dialog-actions"><button id="summary-cancel" type="button" class="button button-quiet">Verwerfen</button><button type="submit" class="button button-primary">Ins Buch übernehmen</button></div>
       </form>
     </dialog>
   </body>

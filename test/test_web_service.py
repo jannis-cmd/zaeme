@@ -9,6 +9,7 @@ from joserfc import jwt
 from joserfc.jwk import RSAKey
 
 from web_service import ISSUER, create_app
+from privacy_store import VERSION
 
 BASE = 'https://example.com'
 
@@ -44,6 +45,12 @@ class WebServiceTest(unittest.TestCase):
         with patch.object(self.provider, 'fetch_access_token', return_value=token), \
                 patch.object(self.provider, 'fetch_jwk_set', return_value={'keys': [self.key.as_dict(private=False)]}):
             return self.client.get('/zaeme/auth/callback?state=' + params['state'][0] + '&code=synthetic', base_url=BASE)
+
+    def book(self, book='synthetic-book'):
+        response = self.client.post('/zaeme/privacy/grant', base_url=BASE, headers={'Origin': BASE},
+            json={'book': book, 'role': 'fictional', 'version': VERSION, 'accepted': True, 'terms': True})
+        self.assertEqual(response.status_code, 200)
+        return {'id': book, 'name': 'Fiktiv', 'privacy': response.json}
 
     def test_signed_oidc_login_and_cookie(self):
         response = self.login()
@@ -132,12 +139,16 @@ class WebServiceTest(unittest.TestCase):
         proxy.assert_not_called()
 
     def test_durable_burst_limit_cannot_be_reset_with_cookies_or_forwarded_ip(self):
+        self.login()
+        book = self.book()
         upstream = Mock(status_code=200, content=b'{}', headers={'Content-Type': 'application/json'})
         with patch('web_service.requests.request', return_value=upstream):
             for _ in range(10):
                 self.assertEqual(self.client.post('/zaeme/api/persona', base_url=BASE,
-                    headers={'Origin': BASE}, json={}).status_code, 200)
+                    headers={'Origin': BASE}, json={'profile': book}).status_code, 200)
             restarted = create_app(self.config).test_client()
+            cookie = self.client.get_cookie('zaeme_session', domain='example.com', path='/zaeme/')
+            restarted.set_cookie('zaeme_session', cookie.value, domain='example.com', path='/zaeme/')
             response = restarted.post('/zaeme/api/persona', base_url=BASE,
                 headers={'Origin': BASE, 'X-Forwarded-For': '203.0.113.9'}, json={})
         self.assertEqual(response.status_code, 429)
@@ -150,33 +161,30 @@ class WebServiceTest(unittest.TestCase):
             self.client.get('/zaeme/app.js', base_url=BASE)
         identify.assert_not_called()
 
-    def test_guest_cannot_bypass_voice_relay_with_classic_endpoints(self):
+    def test_every_public_processing_endpoint_requires_login(self):
         with patch('web_service.requests.request') as proxy:
-            for route in ['chat', 'speak', 'scribe-token', 'agents/settle']:
+            for route in ['chat', 'speak', 'scribe-token', 'agents/settle', 'persona', 'transcribe', 'agents/session']:
                 response = self.client.post('/zaeme/api/' + route, base_url=BASE, headers={'Origin': BASE}, json={})
-                self.assertEqual(response.status_code, 403)
+                self.assertEqual(response.status_code, 401)
             proxy.assert_not_called()
 
-    def test_guest_requires_exactly_one_person_and_never_sees_provider_credentials(self):
+    def test_authenticated_voice_never_exposes_provider_credentials(self):
+        self.login()
+        book = self.book()
         payload = dict(backend='agents', signed_url='wss://api.elevenlabs.io/v1/convai/conversation?signature=private',
                        reservation='private-reservation', profiles='[]', group_rules='', greeting='Hallo', voice_id='voice')
         upstream = Mock(status_code=200, headers={'Content-Type': 'application/json'})
         upstream.json.return_value = payload
         with patch('web_service.requests.request', return_value=upstream) as proxy:
-            for profiles in [[], [{}, {}]]:
-                response = self.client.post('/zaeme/api/agents/session', base_url=BASE,
-                                            headers={'Origin': BASE}, json={'profiles': profiles})
-                self.assertEqual(response.status_code, 400)
-            proxy.assert_not_called()
             response = self.client.post('/zaeme/api/agents/session', base_url=BASE,
-                                        headers={'Origin': BASE}, json={'profiles': [{'name': 'Test'}]})
+                headers={'Origin': BASE}, json={'profiles': [book]})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(proxy.call_args.kwargs['headers']['X-Zaeme-Voice-Transport'], 'websocket')
+            self.assertIn('X-Zaeme-Privacy', proxy.call_args.kwargs['headers'])
             self.assertIn(BASE.replace('https:', 'wss:') + '/zaeme/voice/', response.json['signed_url'])
             self.assertNotIn(b'private', response.data)
-            # A second tab cannot mint another concurrent guest call.
             self.assertEqual(self.client.post('/zaeme/api/agents/session', base_url=BASE,
-                             headers={'Origin': BASE}, json={'profiles': [{}]}).status_code, 429)
+                headers={'Origin': BASE}, json={'profiles': [book]}).status_code, 429)
 
     def test_cross_site_and_missing_origin_blocked(self):
         self.login()
@@ -191,18 +199,22 @@ class WebServiceTest(unittest.TestCase):
         self.client.set_cookie('zaeme_session', cookie.value, domain='example.com', path='/zaeme/')
         self.assertFalse(self.client.get('/zaeme/auth/session', base_url=BASE).json['authenticated'])
 
-    def test_accounts_have_no_daily_conversation_quota(self):
+    def test_accounts_have_no_person_or_lifetime_conversation_quota(self):
         self.login()
-        upstream = Mock(status_code=200, content=b'{}', headers={'Content-Type': 'application/json'})
-        with patch('web_service.requests.request', return_value=upstream):
-            for _ in range(15):
-                response = self.client.post('/zaeme/api/agents/session', base_url=BASE, headers={'Origin': BASE}, json={})
-                self.assertEqual(response.status_code, 200)
-            second = create_app(self.config).test_client()
-            cookie = self.client.get_cookie('zaeme_session', domain='example.com', path='/zaeme/')
-            second.set_cookie('zaeme_session', cookie.value, domain='example.com', path='/zaeme/')
-            response = second.post('/zaeme/api/agents/session', base_url=BASE, headers={'Origin': BASE}, json={})
-            self.assertEqual(response.status_code, 200)
+        books = [self.book('book-' + str(i)) for i in range(15)]
+        self.assertEqual(len(self.client.get('/zaeme/privacy/export', base_url=BASE).json['grants']), 15)
+        voices = self.app.extensions['zaeme_voices']
+        opaque = self.client.get_cookie('zaeme_session', domain='example.com', path='/zaeme/').value
+        cookie = voices.identify(opaque)
+        # Sequential sessions remain possible after the old five-minute budget.
+        with voices.db() as connection:
+            connection.execute('UPDATE guests SET used=99999 WHERE id=?', (voices.hash(cookie),))
+        ticket = voices.reserve(cookie)
+        payload = dict(signed_url='wss://api.elevenlabs.io/v1/convai/conversation?test=1')
+        voices.prepare(ticket, payload)
+        self.assertEqual(voices.open(ticket, cookie)[1], 600)
+        voices.finish(ticket)
+        self.assertTrue(voices.reserve(cookie))
 
     def test_html_runtime_and_private_files(self):
         upstream = Mock(status_code=200, content=b'<head></head>', headers={'Content-Type': 'text/html'})
