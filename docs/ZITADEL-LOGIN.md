@@ -72,7 +72,8 @@ with `agents_service.py --setup-persona`, then set `ZAEME_PERSONA_VIA_AGENT=1`.
 Hosted summaries fail closed without this controlled agent path. The underlying
 Infomaniak secret is never exported to the browser.
 
-Install the units from `deploy/`. Both gateways remain private on loopback;
+Install the `zaeme-*` units from `deploy/` on the app host; `myna-auth-*` checks
+belong only on the authentication host. Both gateways remain private on loopback;
 Gunicorn needs threads for WebSockets. Preserve the `/zaeme/` prefix in Caddy and
 leave other customer website routes unchanged. The privacy timer runs every five
 minutes; install and enable `zaeme-privacy.timer`. Its user needs the auth database
@@ -82,7 +83,13 @@ the timer alone does not provide off-server alerting.
 The CSP allows same-origin connections and SDK blob worklets. Keep URL/query
 access logging disabled: callbacks and relay paths contain credentials. Never log
 profile content or provider responses. Back up `/etc/zaeme` and `/var/lib/zaeme`
-privately; after restoration reapply revocations and pending deletions before
+privately. The daily encrypted backup uses a root-owned copy of
+`deploy/scripts/backup.sh` at `/usr/local/sbin/zaeme-backup`, not executable
+code owned by the app user. Install `age` from the official OS repository and
+configure only the public recipient under `/etc/zaeme-backup/recipient.txt`.
+The hourly backup check uses a root-owned copy of `backup_check.py` and isolated
+Python. Off-server replication and alarm delivery still require operational
+configuration. After restoration reapply revocations and pending deletions before
 allowing processing. See the detailed operator runbook.
 
 ## Verification

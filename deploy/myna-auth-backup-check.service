@@ -1,0 +1,17 @@
+[Unit]
+Description=Check encrypted ZITADEL backup freshness
+After=myna-auth-backup.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/
+ExecStart=/usr/bin/python3 -I /usr/local/sbin/myna-backup-check --directory /opt/myna-auth/backups --pattern myna-auth-*.tar.gz.age
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+RestrictAddressFamilies=AF_UNIX
+MemoryMax=64M

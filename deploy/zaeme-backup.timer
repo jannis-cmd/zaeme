@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily encrypted Zäme recovery backup
+
+[Timer]
+OnCalendar=*-*-* 03:40:00 UTC
+RandomizedDelaySec=900
+Persistent=true
+
+[Install]
+WantedBy=timers.target

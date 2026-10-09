@@ -164,8 +164,41 @@ ist durch den Timer allein nicht eingerichtet; einen zuständigen Menschen und
 regelmässige Statuskontrolle verbindlich benennen.
 Rechtstexte anpassen, wenn Code, Zeiten oder tatsächlicher Betrieb abweichen.
 
-Verschlüsselte Backups mit dokumentierter Laufzeit und Zugriffsbeschränkung
-führen. Auskunfts-/Löschanfragen auch für enthaltene Daten bewerten. Backups nicht
+Für Zäme läuft `zaeme-backup.timer` täglich um 03:40 UTC mit bis zu 15 Minuten
+Zufallsverzögerung. Er sichert die SQLite-Datenbank per Online-Backup, die private
+Serverkonfiguration, das technische Budget und Wiederherstellungsinformationen.
+Bücher im Browser sind nicht enthalten. Der geschützte Staging-Bereich liegt in
+`/run` (auf dem geprüften Host tmpfs). Das Archiv wird mit `age` verschlüsselt;
+der private Entschlüsselungsschlüssel bleibt ausserhalb der Server. Verschlüsselte
+Archive liegen rootgeschützt unter `/var/backups/zaeme/encrypted`. Nach 14 Tagen
+werden sie beim nächsten erfolgreichen täglichen Lauf bereinigt. Alte manuelle
+Klartext-Sicherungen wurden erst nach bytegenauer Prüfung ihrer verschlüsselten
+Kopie ersetzt.
+
+Die Root-Dienste dürfen keine vom App-Benutzer veränderbaren Programme ausführen:
+`deploy/scripts/backup.sh` als root:root 0755 nach `/usr/local/sbin/zaeme-backup`
+installieren. `backup_check.py` als root:root 0644 nach
+`/usr/local/sbin/myna-backup-check` installieren; Aufruf mit isoliertem `python3 -I`
+und Arbeitsverzeichnis `/`. Nur den öffentlichen `age`-Empfänger rootgeschützt in
+`/etc/zaeme-backup/recipient.txt` ablegen, im Format `Public key: age1…`.
+Pakete aus den offiziellen Betriebssystemquellen verwenden.
+
+`zaeme-backup-check.timer` prüft stündlich: mindestens ein Archiv mit age-Header,
+private Dateirechte und letzter Archivzeitpunkt vor höchstens 36 Stunden. Fehler
+führen zu Exitcode 2. Diese Metadatenprüfung beweist weder Entschlüsselbarkeit
+noch eine unabhängige Kopie. Auf myna-3 prüft `myna-auth-backup-check.timer` die
+bestehenden verschlüsselten ZITADEL-Sicherungen nach denselben Kriterien. Die
+Dateien `deploy/myna-auth-*` gehören nur auf den Auth-Host, die `zaeme-*`-Units
+auf den App-Host.
+
+Am 9.10.2026 wurde ein Zäme-Archiv verschlüsselt auf den Betreiber-Mac kopiert,
+in-memory entschlüsselt, die SQLite-Integrität geprüft und die Invalidierung
+aller Sessions/Freigaben in einer isolierten Kopie erprobt. Kein Produktivzustand
+wurde zurückgespielt. Die automatisierte unabhängige Replikation, ein vollständiger
+Dienst-Wiederanlauf und die externe Alarmzustellung bleiben offen. Lokale Kopien
+unterliegen derselben 14-Tage-Richtfrist und müssen beim regelmässigen Betrieb
+ebenfalls bereinigt werden; hierfür läuft noch kein unabhängiger Automatismus.
+ Auskunfts-/Löschanfragen auch für enthaltene Daten bewerten. Backups nicht
 als Dauerarchiv verwenden. Vor einer Wiederherstellung:
 
 1. Öffentliches Routing und ausgehende Anbieter-Verarbeitung sperren.
