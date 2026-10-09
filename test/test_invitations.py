@@ -2,6 +2,7 @@ import concurrent.futures
 import sqlite3
 import time
 import unittest
+import re
 from contextlib import closing
 from unittest.mock import Mock, patch
 
@@ -107,15 +108,37 @@ class InvitationTest(unittest.TestCase):
                                          headers={'Origin': BASE}, data={'days': '7'}).status_code, 403)
         self.login({'sub': 'synthetic-admin'})
         self.assertTrue(self.client.get('/zaeme/auth/session', base_url=BASE).json['invitation_admin'])
+        page = self.client.get('/zaeme/access', base_url=BASE)
+        csrf = re.search(rb'name="csrf_token" value="([^"]+)"', page.data)[1].decode()
         for headers in ({}, {'Origin': 'https://evil.example'}):
             self.assertEqual(self.client.post('/zaeme/access/create', base_url=BASE,
                                              headers=headers, data={'days': '7'}).status_code, 403)
         response = self.client.post('/zaeme/access/create', base_url=BASE, headers={'Origin': BASE},
-                                    data={'label': '<script>bad</script>', 'days': '7'})
+                                    data={'label': '<script>bad</script>', 'days': '7', 'csrf_token': csrf})
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'/invite/', response.data)
         self.assertNotIn(b'<script>bad</script>', response.data)
         self.assertEqual(response.headers['Cache-Control'], 'no-store')
+
+    def test_native_forms_allow_null_origin_only_with_session_bound_token(self):
+        self.login({'sub': 'synthetic-admin'})
+        page = self.client.get('/zaeme/access', base_url=BASE)
+        csrf = re.search(rb'name="csrf_token" value="([^"]+)"', page.data)[1].decode()
+        for headers in ({}, {'Origin': 'null'}, {'Origin': BASE}):
+            self.assertEqual(self.client.post('/zaeme/access/create', base_url=BASE, headers=headers,
+                                             data={'days': '7', 'csrf_token': csrf}).status_code, 200)
+        for headers, token in (({'Origin': 'https://evil.example'}, csrf),
+                               ({'Origin': 'null'}, ''), ({'Origin': 'null'}, 'wrong'),
+                               ({'Origin': 'null'}, 'ü')):
+            self.assertEqual(self.client.post('/zaeme/access/create', base_url=BASE, headers=headers,
+                                             data={'days': '7', 'csrf_token': token}).status_code, 403)
+        other = self.app.test_client()
+        self.assertEqual(other.post('/zaeme/access/create', base_url=BASE, headers={'Origin': 'null'},
+                                    data={'days': '7', 'csrf_token': csrf}).status_code, 403)
+        identity, _ = self.app.extensions['zaeme_invitations'].create()
+        self.assertEqual(self.client.post('/zaeme/access/revoke', base_url=BASE, headers={'Origin': 'null'},
+                                         data={'id': identity, 'csrf_token': csrf}).status_code, 303)
+        self.assertFalse(self.app.extensions['zaeme_invitations'].pending(identity))
 
     def test_privacy_pages_stay_public(self):
         upstream = Mock(status_code=200, content=b'legal', headers={'Content-Type': 'text/html'})

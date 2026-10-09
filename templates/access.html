@@ -45,6 +45,7 @@
     </section>
     {% endif %}
     <form method="post" action="{{ prefix }}/access/create">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
       <label for="label">Bezeichnung für Ihre Übersicht (optional)</label>
       <input id="label" name="label" maxlength="80" placeholder="Zum Beispiel: Einladung Oktober">
       <label for="days">Link gültig für</label>
@@ -55,7 +56,7 @@
     {% for item in invitations %}
     <section class="entry">
       <strong>{{ item.label }}</strong><p class="small">{{ item.status }}</p>
-      {% if not item.revoked %}<form method="post" action="{{ prefix }}/access/revoke"><input type="hidden" name="id" value="{{ item.id }}"><button type="submit">Einladung und Zugang widerrufen</button></form>{% endif %}
+      {% if not item.revoked %}<form method="post" action="{{ prefix }}/access/revoke"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="id" value="{{ item.id }}"><button type="submit">Einladung und Zugang widerrufen</button></form>{% endif %}
     </section>
     {% else %}<p>Noch keine Einladungen erstellt.</p>{% endfor %}
     <p class="small">Ein abgelaufener Link beendet einen bereits erteilten Zugang nicht. Mit „Widerrufen“ sperren Sie auch den Zugang und laufende Gespräche.</p>
@@ -64,7 +65,7 @@
     {% if pending %}<a class="button" href="{{ prefix }}/auth/login">Registrieren oder anmelden</a>
     <p class="small" style="margin-top:20px">Das gemeinsame MYNA-Konto bestätigt Ihre E-Mail-Adresse. Diese Einladung schaltet anschliessend Zäme für Ihr Konto frei.</p>
     {% else %}<a class="button" href="{{ prefix }}/auth/login">Mit bestehendem Zugang anmelden</a>{% endif %}
-    {% if signed_in %}<p class="small" style="margin-top:20px">Für dieses Konto ist kein Zäme-Zugang freigegeben.</p><form method="post" action="{{ prefix }}/access/logout"><button type="submit">Anderes Konto verwenden</button></form><p class="small" style="margin-top:20px"><a href="{{ prefix }}/privacy/export">Meine Datenschutzdaten herunterladen</a></p>{% endif %}
+    {% if signed_in %}<p class="small" style="margin-top:20px">Für dieses Konto ist kein Zäme-Zugang freigegeben.</p><form method="post" action="{{ prefix }}/access/logout"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit">Anderes Konto verwenden</button></form><p class="small" style="margin-top:20px"><a href="{{ prefix }}/privacy/export">Meine Datenschutzdaten herunterladen</a></p>{% endif %}
   {% endif %}
   <footer><a href="{{ prefix }}/impressum.html">Impressum</a><a href="{{ prefix }}/datenschutz.html">Datenschutz</a><a href="{{ prefix }}/nutzungsbedingungen.html">Nutzungsbedingungen</a>{% if admin %}<a href="{{ prefix }}/">Zur App</a>{% endif %}</footer>
 </main>

@@ -144,7 +144,7 @@ are bound to subject IDs, not email addresses. Link expiry does not terminate
 an issued access grant. Revocation blocks existing sessions and running voice
 relays; privacy export/revocation remain available to signed-in accounts.
 
-Invitation management requires the operator subject and exact POST Origin.
+Invitation management requires the operator subject and a session-bound CSRF token on native forms. Foreign Origins are rejected; missing or null Origins require the same token. API POSTs still require the exact public Origin.
 Non-invited accounts cannot call profile, consent-grant or voice endpoints, and
 receive the invitation gate rather than the app. Legal documents remain public.
 The existing privacy approval gates for real profiles are independent and unchanged.

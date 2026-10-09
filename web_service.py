@@ -83,6 +83,7 @@ def create_app(config=None):
     def access_page(message=None, status=200, **values):
         pending = invitations.pending(session.get('zaeme_invite_id', ''))
         return render_template('access.html', prefix=prefix, nonce=g.csp_nonce,
+                               csrf_token=session.setdefault('zaeme_form_csrf', secrets.token_urlsafe(32)) if g.account else '',
                                title=values.pop('title', 'Zäme auf Einladung'),
                                pending=pending, signed_in=bool(g.account),
                                message=message or ('Sie wurden zu Zäme eingeladen. Melden Sie sich an oder erstellen Sie ein MYNA-Konto, um Ihre Einladung anzunehmen.'
@@ -128,11 +129,22 @@ def create_app(config=None):
             if row:
                 g.account = {'subject': row[0], 'name': row[1], 'email': row[2]}
         if request.method == 'POST':
-            # Exact Origin prevents logout/login CSRF and cross-site API usage.
-            if request.headers.get('Origin') != public.scheme + '://' + public.netloc:
-                abort(403)
             if scope != '/api/transcribe' and (request.content_length or 0) > 32768:
                 abort(413)
+            origin = request.headers.get('Origin')
+            expected_origin = public.scheme + '://' + public.netloc
+            if scope in {'/access/create', '/access/revoke', '/access/logout'}:
+                # no-referrer makes native form POSTs send Origin: null.
+                # Accept those only with a session-bound, unguessable CSRF token.
+                expected = session.get('zaeme_form_csrf', '')
+                supplied = request.form.get('csrf_token', '')
+                if (request.mimetype != 'application/x-www-form-urlencoded'
+                        or origin not in (None, 'null', expected_origin)
+                        or not expected or not secrets.compare_digest(expected.encode(), supplied.encode())):
+                    abort(403)
+            elif origin != expected_origin:
+                # API calls still require the exact public Origin.
+                abort(403)
 
     @app.after_request
     def secure(response):
