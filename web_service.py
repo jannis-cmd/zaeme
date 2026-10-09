@@ -19,7 +19,7 @@ from flask import Flask, Response, abort, g, jsonify, redirect, request, session
 from flask_sock import Sock
 from threading import Thread
 from guest_access import GuestAccess
-from privacy_store import PrivacyStore, PrivacyError, VERSION
+from privacy_store import PrivacyStore, PrivacyError, VERSION, VOICE_NOTICE_VERSION, real_profiles_allowed
 from security_controls import RequestLimits
 
 ISSUER = 'https://auth.myna-ai.ch'
@@ -192,11 +192,7 @@ def create_app(config=None):
         return response
 
     def real_allowed():
-        settings = config.get('privacy', {})
-        return bool(g.account and settings.get('real_profiles_enabled') is True
-                    and settings.get('provider_contracts_confirmed') is True
-                    and settings.get('risk_review_approved') is True
-                    and g.account['subject'] in settings.get('approved_subjects', []))
+        return bool(g.account and real_profiles_allowed(config, g.account['subject']))
 
     def context_valid(value):
         try:
@@ -240,7 +236,8 @@ def create_app(config=None):
                 # Pseudonymous storage namespace, never raw OAuth identifiers.
                 'storage_id': digest(ISSUER + ':' + g.account['subject']) if g.account else None,
                 'guest_seconds': None, 'login_required': True,
-                'privacy': {'version': VERSION, 'real_allowed': real_allowed(), 'voice_notes': False}}
+                'privacy': {'version': VERSION, 'voice_notice_version': VOICE_NOTICE_VERSION,
+                            'real_allowed': real_allowed(), 'voice_notes': False}}
 
     def settle_guest(conversation_id, reservation):
         def attempt():
@@ -309,12 +306,16 @@ def create_app(config=None):
             profiles = data.get('profiles') if route == 'agents/session' else [data.get('profile')]
             try:
                 books = privacy.validate(privacy_owner(), profiles, real_allowed())
+                if route == 'agents/session' and (not isinstance(data.get('voice_notice'), dict)
+                        or data['voice_notice'].get('version') != VOICE_NOTICE_VERSION
+                        or data['voice_notice'].get('confirmed') is not True):
+                    raise PrivacyError('Bitte vor dem Gespräch bestätigen, dass alle Anwesenden informiert sind und zustimmen.')
                 ticket = voices.reserve(voices.identify(request.cookies.get(COOKIE, ''))) if route == 'agents/session' else None
             except PrivacyError as exc:
                 return jsonify(error=str(exc)), 403
             except ValueError as exc:
                 return jsonify(error=str(exc)), 429
-            correlation = privacy.prepare_request(privacy_owner(), books)
+            correlation = privacy.prepare_request(privacy_owner(), books, data.get('voice_notice') if ticket else None)
             context = privacy.sign_context(privacy_owner(), books, real_allowed(), digest(request.cookies.get(COOKIE, '')), correlation)
         else:
             ticket = None

@@ -5,8 +5,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 from test import test_web_service
-from privacy_store import VERSION, PrivacyError, upstream_context
-from privacy_admin import drain, revoke_user, reconcile_requests
+from privacy_store import VERSION, VOICE_NOTICE_VERSION, PrivacyError, upstream_context, real_profiles_allowed
+from privacy_admin import drain, revoke_user, reconcile_requests, health
 from web_service import digest
 
 BASE = test_web_service.BASE
@@ -18,6 +18,53 @@ class PrivacyTest(unittest.TestCase):
 
     def post(self, path, data):
         return self.client.post('/zaeme/' + path, base_url=BASE, headers={'Origin': BASE}, json=data)
+
+    def test_public_release_requires_every_operator_gate_and_known_access_mode(self):
+        settings = dict(real_profiles_access='public', real_profiles_enabled=True,
+                        provider_contracts_confirmed=True, risk_review_approved=True)
+        self.assertTrue(real_profiles_allowed({'privacy': settings}, 'new-account'))
+        for key in ('real_profiles_enabled', 'provider_contracts_confirmed', 'risk_review_approved'):
+            for invalid in (False, None, 'true', 1):
+                self.assertFalse(real_profiles_allowed({'privacy': {**settings, key: invalid}}, 'new-account'))
+        self.assertFalse(real_profiles_allowed({'privacy': {**settings, 'real_profiles_access': 'typo'}}, 'new-account'))
+        self.assertFalse(real_profiles_allowed({'privacy': {**settings, 'real_profiles_access': 'restricted'}}, 'new-account'))
+        self.assertFalse(real_profiles_allowed({'privacy': None}, 'new-account'))
+        self.assertFalse(real_profiles_allowed({'privacy': settings}, None))
+
+    def test_voice_notice_is_required_before_any_provider_request(self):
+        self.login()
+        book = self.book()
+        with patch('web_service.requests.request') as proxy:
+            for notice in (None, {}, {'version': 'old', 'confirmed': True},
+                           {'version': VOICE_NOTICE_VERSION, 'confirmed': 'true'},
+                           {'version': VOICE_NOTICE_VERSION, 'confirmed': False}):
+                self.assertEqual(self.post('api/agents/session', {'profiles': [book], 'voice_notice': notice}).status_code, 403)
+            proxy.assert_not_called()
+
+    def test_voice_notice_export_is_owner_bound_and_contains_no_receipts(self):
+        self.login()
+        store = self.app.extensions['zaeme_privacy']
+        book = self.book()
+        owner = store.owner('synthetic-user')
+        store.prepare_request(owner, [book], {'version': VOICE_NOTICE_VERSION, 'confirmed': True})
+        notices = store.export(owner)['voice_notices']
+        self.assertEqual(notices[0]['books'], [book['id']])
+        self.assertNotIn('receipt', json.dumps(notices))
+        self.assertEqual(store.export(store.owner('other-account'))['voice_notices'], [])
+
+    def test_privacy_health_detects_missing_stale_worker_and_unresolved_calls(self):
+        store = self.app.extensions['zaeme_privacy']
+        self.assertFalse(health(store)['healthy'])
+        drain(store, delete=lambda _: None, discover=lambda _: [])
+        self.assertTrue(health(store)['healthy'])
+        self.assertFalse(health(store, now=int(time.time()) + 901)['healthy'])
+        correlation = store.prepare_request('synthetic', [])
+        store.start_request(correlation)
+        with store.db() as db:
+            db.execute('UPDATE privacy_requests SET created=? WHERE request=?', (int(time.time()) - 86401, correlation))
+        status = health(store)
+        self.assertEqual(status['overdue_discoveries'], 1)
+        self.assertFalse(status['healthy'])
 
     def test_empty_discoveries_do_not_starve_later_requests(self):
         store = self.app.extensions['zaeme_privacy']

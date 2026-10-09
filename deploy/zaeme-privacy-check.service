@@ -1,0 +1,19 @@
+[Unit]
+Description=Check Zäme deletion worker freshness and overdue provider records
+After=zaeme-privacy.service
+
+[Service]
+Type=oneshot
+User=zaeme
+Group=zaeme
+WorkingDirectory=/opt/zaeme/current
+EnvironmentFile=/etc/zaeme/runtime.env
+ExecStart=/opt/zaeme/venv/bin/python privacy_admin.py --check
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/zaeme
+RestrictAddressFamilies=AF_UNIX
+MemoryMax=128M

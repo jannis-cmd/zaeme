@@ -94,3 +94,21 @@ retryable deletion. UI tests cover the login gate, consent before collection,
 summary review and offline revocation. Test desktop/mobile layout and a real
 synthetic-profile login/voice/logout separately; mocked tests do not establish
 provider compliance or clinical safety.
+
+## Conversation notice and public access policy
+
+Hosted `/api/agents/session` requests require `voice_notice` with the runtime
+`privacy.voice_notice_version` as `version` and boolean `confirmed: true`.
+The UI requests this afresh before each microphone/provider start. Cancellation
+or changes to selected books invalidate it. Notice records are owner-bound.
+
+Real profiles require all three explicit privacy approval flags. After a
+documented public-launch decision, `privacy.real_profiles_access: "public"`
+allows every authenticated account without an allowlist. Missing mode defaults
+to `restricted` and requires `approved_subjects`; unknown modes deny access.
+The release does not itself supply or approve these operational decisions.
+
+Install `zaeme-privacy-check.timer` alongside the cleanup timer. `--check` fails
+for stale cleanup (>15 minutes) or pending resources/unresolved requests older
+than 24 hours. Systemd status is local monitoring; configure an independently
+operated notification channel separately.

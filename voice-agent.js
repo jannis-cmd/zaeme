@@ -37,6 +37,9 @@ stopConversation = function () {
 
 startConversation = async function () {
   if (!guardBooks(selectedPeople())) return;
+  const people = selectedPeople();
+  const voiceNotice = AUTH.enabled ? await requestConversationNotice(people) : {};
+  if (!voiceNotice || !guardBooks(people)) return;
   const request = ++conversationRequest;
   conversationConnecting = true;
   setTalkState('thinking');
@@ -47,7 +50,7 @@ startConversation = async function () {
   try {
     const response = await fetch('api/agents/session', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ profiles: selectedPeople(), voice: state.voiceGender }),
+      body: JSON.stringify({ profiles: people, voice: state.voiceGender, voice_notice: voiceNotice }),
     });
     config = await response.json();
     if (!response.ok) throw new Error(config.error || 'Das Gespräch konnte nicht gestartet werden.');

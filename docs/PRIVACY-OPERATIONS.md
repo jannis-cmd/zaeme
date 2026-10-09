@@ -21,8 +21,10 @@ der privaten Auth-Konfiguration sämtliche folgenden Voraussetzungen erfüllt si
 - `privacy.real_profiles_enabled` ist ausdrücklich `true`.
 - `privacy.provider_contracts_confirmed` ist ausdrücklich `true`.
 - `privacy.risk_review_approved` ist ausdrücklich `true`.
-- Die konkrete OIDC-Subject-Kennung des freigegebenen Kontos steht in
-  `privacy.approved_subjects`.
+- Für öffentlichen Zugang wird `privacy.real_profiles_access` auf `public` gesetzt.
+  Damit sind alle angemeldeten Konten zugelassen, ohne zusätzliche Kontoliste.
+  Bei fehlendem Wert gilt `restricted`: Dann muss die konkrete OIDC-Subject-Kennung
+  in `privacy.approved_subjects` stehen. Unbekannte Modi sperren den Zugang.
 
 Die Subject-Liste gehört ausschliesslich in die private Konfiguration. Keine
 Beispielidentitäten oder echte Freigabedaten committen. Eine technische Freigabe
@@ -48,6 +50,15 @@ bereits laufenden Prozess mit alter Konfiguration vertrauen.
    Transferbeurteilung nachvollziehbar dokumentieren. Eine DPF-Zertifizierung nur
    für die tatsächlich zertifizierte Rechtseinheit und den erfassten Bereich
    heranziehen; Nachweis und Prüfdatum privat ablegen.
+   Zusätzlich die [ElevenAgents-Bedingungen](https://elevenlabs.io/agents-terms)
+   prüfen: Ziff. 2.E verlangt für sensible Daten mit erhöhten Schutzanforderungen
+   eine ausdrückliche schriftliche Anbieterzusage. Ziff. 4.A stellt Anforderungen
+   an den Endnutzervertrag. Die bedingte mindestens fünfjährige Nachweisfrist in
+   4.B gegenüber der aktuellen 90-Tage-Bereinigung klären; ohne Prüfung weder
+   vollständige Vertragserfüllung noch die pauschale Pflicht zum Speichern von
+   Gesprächsinhalten über fünf Jahre behaupten. Nach 7.D ist der BYO-Anbieter
+   kein automatischer Unterauftragnehmer von ElevenLabs. Die OEM-Anwendbarkeit
+   und Tarifberechtigung für unsere öffentliche Agents-App gesondert bestätigen.
 4. Einstellungen über API/Dashboard prüfen: beide Agenten ohne Audioaufzeichnung,
    `retention_days=1`, `delete_transcript_and_pii=true`, `delete_audio=true`.
    `apply_to_existing_conversations=false` schützt nicht vor alten Aufbewahrungen:
@@ -72,8 +83,10 @@ bereits laufenden Prozess mit alter Konfiguration vertrauen.
    muss diese Entscheidung umfassen. Keine pauschale «Vertretung durch Familie»
    annehmen. Rechtliche Zweifelsfälle vor Nutzung fachlich klären; keine
    Identitäts-/Gesundheitsunterlagen in Buchtexte oder öffentliche Tickets kopieren.
-8. Erst nach dokumentierter Entscheidung einzelne Konten freigeben. Keine
-   Massenfreigabe. Ablehnung, erkennbares Unwohlsein und Stoppwünsche unabhängig
+8. Erst nach dokumentierter Entscheidung für den öffentlichen Zielbetrieb den
+   Modus `public` setzen und die öffentlichen Rechtstexte auf diesen Betrieb
+   aktualisieren. Die Konfigurationsflags dokumentieren eine Entscheidung; sie
+   ersetzen keine Vertragsnachweise oder Risikoprüfung. Ablehnung, erkennbares Unwohlsein und Stoppwünsche unabhängig
    von einer vorherigen Zustimmung respektieren. Gesundheitsangaben werden nicht
    gezielt abgefragt; unbeabsichtigte sensible Inhalte bleiben in der Risikoanalyse.
 
@@ -138,7 +151,14 @@ Aufträge nicht wegen Zeitablaufs verworfen. Ein Tag alte aktive Anbieterressour
 werden durch den Cleanup ebenfalls zur Löschung gestellt; dies ergänzt die
 Anbieterkonfiguration und ist keine exakte Ein-Tages-Garantie bei Ausfällen.
 
-Die Bereinigung muss tatsächlich regelmässig laufen. `privacy_admin.py --status`, Timer/Exitstatus und
+Die Bereinigung muss tatsächlich regelmässig laufen. `privacy_admin.py --check`
+liefert Exitcode 2, wenn seit mehr als 15 Minuten kein erfolgreicher Cleanup
+vorliegt, offene Anbieterressourcen älter als 24 Stunden noch auf Löschung
+warten oder ungeklärte Zuordnungen älter als 24 Stunden bestehen. Ressourcenalter
+meint das Erstellungsdatum, nicht 24 Stunden seit Widerruf. Die zusätzliche
+`zaeme-privacy-check.timer` prüft alle fünf Minuten und macht Fehler im
+Systemd-Dienststatus sichtbar; sie verschickt keine Benachrichtigungen.
+ `privacy_admin.py --status`, Timer/Exitstatus und
 Warteschlangen prüfen, Fehler untersuchen und Betriebsnachweise privat führen. Automatische Alarmierung
 ist durch den Timer allein nicht eingerichtet; einen zuständigen Menschen und
 regelmässige Statuskontrolle verbindlich benennen.
@@ -193,3 +213,29 @@ regelmässig mit dem tatsächlichen Stand abgleichen.
 ## Technischer Auslieferungsnachweis vom 9. Oktober 2026
 
 80 Python-Tests, 44 JavaScript-Tests und SDK-Build bestanden. Desktop- und mobile Login-/Freigabeansichten geprüft. Auf dem öffentlichen Dienst wurden ausschliesslich synthetische Daten getestet: Zusammenfassung mit Freigabe, authentifizierter Sprach-Relay mit Anbieter-Metadaten und Audio, Gesprächsabbruch durch Widerruf. Die beiden entstandenen Anbieter-Gespräche wurden anschliessend erfolgreich gelöscht; keine offene Löschung oder unaufgelöste Anfrage blieb zurück. Alle sechs öffentlichen Verarbeitungsrouten verweigerten anonyme Anfragen mit HTTP 401. Rechtstexte blieben erreichbar. Der Lösch-Timer läuft; sein manuell ausgelöster Dienst meldete Erfolg. Die neuen Sicherheits-Prompts wurden an beiden bestehenden Agenten geprüft, ohne deren BYO-LLM-Konfiguration zu ändern. Das ersetzt keine rechtliche oder klinische Freigabe.
+
+## Bestätigung vor jedem Gespräch
+
+Vor Mikrofon-/Anbieterstart zeigt die App ausgewählte Personen und die KI-/
+Anbieterinformation. Eine nicht vorausgewählte Bestätigung betrifft alle Anwesenden
+und gegebenenfalls eine tatsächlich befugte Vertretung. Geänderte Auswahl oder
+Buchinhalte verwerfen die Bestätigung. Der Server verlangt die aktuelle
+`voice_notice`-Fassung und `confirmed: true`; Browser-Mikrofonfreigabe allein
+genügt nicht. Nachweise enthalten Version, Zeitpunkt und technische Buchkennungen,
+keine Stimme oder Gesprächsinhalte, und erscheinen im kontogebundenen Export.
+Dies ist eine Erklärung des Bedienenden, kein unabhängiger Nachweis der tatsächlichen
+Urteilsfähigkeit oder Vertretungsbefugnis.
+
+## Ergänzender technischer Nachweis: Startbestätigung und Betriebskontrolle
+
+84 Python- und 46 JavaScript-Tests bestanden; SDK-Build und Secret-Scan des
+Auslieferungsstands bestanden. Der Gesprächshinweis wurde mit zwei synthetischen
+Büchern auf Desktop und Mobilgerät geprüft, einschliesslich Abbrechen, Escape und
+zurückgesetzter Checkbox beim nächsten Start. Live verweigerte der Server einen
+Start ohne aktuelle Gesprächsbestätigung. Ein bestätigter synthetischer Start
+lieferte Audio über den authentifizierten Relay; Widerruf schloss die Verbindung.
+Beide Anbieter-Testgespräche wurden gelöscht; null offene Löschungen oder
+ungeklärte Zuordnungen blieben zurück. Die zusätzliche Statusprüfung ist aktiv
+und meldete frischen Cleanup sowie keine überfälligen Einträge. Sie liefert lokale
+Systemd-Fehlerzustände, keine externe Alarmzustellung. Echte Profile bleiben in der
+Produktionskonfiguration deaktiviert; Verträge und DSFA wurden nicht freigegeben.

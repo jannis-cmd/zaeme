@@ -6,6 +6,8 @@ const STORAGE_KEY = AUTH.authenticated && AUTH.storage_id
 // Guest books are never silently assigned to an authenticated account.
 const NEEDS_LOGIN = AUTH.enabled && !AUTH.authenticated;
 const PRIVACY_VERSION = AUTH.privacy?.version || "2026-10-09.1";
+const VOICE_NOTICE_VERSION = AUTH.privacy?.voice_notice_version || "2026-10-09.1";
+let conversationNoticePending = null;
 let consentTarget = null;
 let privacyRequest = null;
 let summaryProposal = null;
@@ -617,6 +619,7 @@ document.addEventListener("visibilitychange", () => {
   document.body.classList.toggle("motion-paused", document.hidden);
 });
 function stopConversation() {
+  finishConversationNotice(null);
   setLiveTranscript("");
   setHomeStatus("");
   conversationRequest++;
@@ -1620,6 +1623,41 @@ function guardBooks(people) {
   if (missing) { showConsent(missing); return false; }
   return people.length > 0;
 }
+function conversationSelection(people) {
+  return JSON.stringify(people.map(person => [person.id, person.privacy?.receipt, bookRevision(person)]));
+}
+function requestConversationNotice(people) {
+  if (!AUTH.enabled) return Promise.resolve({});
+  if (conversationNoticePending) return Promise.resolve(null);
+  const selection = conversationSelection(people);
+  $("voice-notice-people").textContent = people.map(person => person.name).join(", ");
+  $("voice-notice-test").hidden = !!AUTH.privacy?.real_allowed;
+  $("voice-notice-confirmed").checked = false;
+  $("voice-notice-start").disabled = true;
+  return new Promise(resolve => {
+    conversationNoticePending = { resolve, selection };
+    $("voice-notice").showModal();
+  });
+}
+function finishConversationNotice(result) {
+  const pending = conversationNoticePending;
+  if (!pending) return;
+  conversationNoticePending = null;
+  $("voice-notice").close();
+  if (result && pending.selection !== conversationSelection(selectedPeople())) result = null;
+  pending.resolve(result);
+}
+$("voice-notice-confirmed").addEventListener("change", () => {
+  $("voice-notice-start").disabled = !$("voice-notice-confirmed").checked;
+});
+$("voice-notice-cancel").addEventListener("click", () => finishConversationNotice(null));
+$("voice-notice").addEventListener("cancel", event => { event.preventDefault(); finishConversationNotice(null); });
+$("voice-notice").addEventListener("close", () => finishConversationNotice(null));
+$("voice-notice-form").addEventListener("submit", event => {
+  event.preventDefault();
+  if ($("voice-notice-confirmed").checked)
+    finishConversationNotice({ version: VOICE_NOTICE_VERSION, confirmed: true });
+});
 function showConsent(person) {
   consentTarget = { person, book: person?.id || makeId() };
   const form = $("consent-form");
@@ -1733,6 +1771,7 @@ async function exportBook() {
     const content = { exported: new Date().toISOString(), book: JSON.parse(JSON.stringify(person)),
       server: { ...server, grants: server.grants.filter(row => row.book === person.id),
         events: server.events.filter(row => row.book === person.id),
+        voice_notices: (server.voice_notices || []).filter(row => row.books.includes(person.id)),
         provider_records: server.provider_records.filter(row => JSON.parse(row.books).includes(person.id)) } };
     // Receipts authorize processing; don't put reusable tokens in an export.
     delete content.book.privacy?.receipt;

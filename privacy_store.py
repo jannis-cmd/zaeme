@@ -16,6 +16,23 @@ from contextlib import contextmanager
 from pathlib import Path
 
 VERSION = '2026-10-09.1'
+VOICE_NOTICE_VERSION = '2026-10-09.1'
+
+
+def real_profiles_allowed(config, subject):
+    settings = config.get('privacy', {})
+    if not subject or not isinstance(settings, dict):
+        return False
+    if not all(settings.get(key) is True for key in
+               ('real_profiles_enabled', 'provider_contracts_confirmed', 'risk_review_approved')):
+        return False
+    access = settings.get('real_profiles_access', 'restricted')
+    if access == 'public':
+        return True
+    subjects = settings.get('approved_subjects', [])
+    return access == 'restricted' and isinstance(subjects, list) and subject in subjects
+
+
 BOOK_ID = re.compile(r'^[A-Za-z0-9_-]{1,80}$')
 CONVERSATION_ID = re.compile(r'^conv_[A-Za-z0-9_]{1,120}$')
 ROLES = {'self', 'representative', 'fictional'}
@@ -47,9 +64,14 @@ class PrivacyStore:
                     resource TEXT PRIMARY KEY, owner TEXT NOT NULL, books TEXT NOT NULL,
                     created INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'active',
                     attempts INTEGER NOT NULL DEFAULT 0, next_attempt INTEGER NOT NULL DEFAULT 0);
+                CREATE TABLE IF NOT EXISTS privacy_worker_state (
+                    singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                    last_run INTEGER NOT NULL, last_success INTEGER NOT NULL);
             ''')
             if 'last_checked' not in {row[1] for row in connection.execute('PRAGMA table_info(privacy_requests)')}:
                 connection.execute('ALTER TABLE privacy_requests ADD COLUMN last_checked INTEGER NOT NULL DEFAULT 0')
+            if 'voice_notice_version' not in {row[1] for row in connection.execute('PRAGMA table_info(privacy_requests)')}:
+                connection.execute("ALTER TABLE privacy_requests ADD COLUMN voice_notice_version TEXT NOT NULL DEFAULT ''")
         os.chmod(self.database, 0o600)
 
     @contextmanager
@@ -139,11 +161,16 @@ class PrivacyStore:
             # is retained for 90 days for rights handling and restoration checks.
         return {'revoked': True, 'provider_deletion': 'queued', 'local_deletion_required': True}
 
-    def prepare_request(self, owner, books):
+    def prepare_request(self, owner, books, voice_notice=None):
+        if voice_notice is not None and (not isinstance(voice_notice, dict)
+                or voice_notice.get('version') != VOICE_NOTICE_VERSION
+                or voice_notice.get('confirmed') is not True):
+            raise PrivacyError('Bitte vor dem Gespräch bestätigen, dass alle Anwesenden informiert sind und zustimmen.')
         correlation = secrets.token_urlsafe(24)
         with self.db() as connection:
-            connection.execute('INSERT INTO privacy_requests(request,owner,books,created) VALUES (?,?,?,?)',
-                               (correlation, owner, json.dumps(books), int(time.time())))
+            connection.execute('INSERT INTO privacy_requests(request,owner,books,created,voice_notice_version) VALUES (?,?,?,?,?)',
+                               (correlation, owner, json.dumps(books), int(time.time()),
+                                VOICE_NOTICE_VERSION if voice_notice else ''))
         return correlation
 
     def start_request(self, correlation):
@@ -176,6 +203,10 @@ class PrivacyStore:
                         'SELECT book,version,role,authority,granted,revoked FROM privacy_grants WHERE owner=?', (owner,))],
                     'events': [dict(row) for row in connection.execute(
                         'SELECT book,action,version,role,authority,happened FROM privacy_events WHERE owner=? ORDER BY id', (owner,))],
+                    'voice_notices': [{'books': [book['id'] for book in json.loads(row['books'])],
+                                      'version': row['voice_notice_version'], 'confirmed': row['created'], 'status': row['status']}
+                                     for row in connection.execute("SELECT books,voice_notice_version,created,status FROM privacy_requests "
+                                                                   "WHERE owner=? AND voice_notice_version!=''", (owner,))],
                     'provider_records': [dict(row) for row in connection.execute(
                         'SELECT resource,books,created,status FROM privacy_resources WHERE owner=?', (owner,))]}
 

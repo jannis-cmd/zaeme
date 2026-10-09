@@ -98,7 +98,26 @@ def drain(store, delete=delete_conversation, discover=discover_conversations):
         outstanding = connection.execute("SELECT COUNT(*) FROM privacy_resources WHERE status='pending'").fetchone()[0]
     with store.db() as connection:
         unresolved = connection.execute("SELECT COUNT(*) FROM privacy_requests WHERE status='open'").fetchone()[0]
-    return {'completed': completed, 'failed': failed + discovery_failed, 'pending': outstanding, 'unresolved_requests': unresolved}
+    failures = failed + discovery_failed
+    with store.db() as connection:
+        connection.execute('INSERT INTO privacy_worker_state(singleton,last_run,last_success) VALUES (1,?,?) '
+                           'ON CONFLICT(singleton) DO UPDATE SET last_run=excluded.last_run, '
+                           'last_success=CASE WHEN ?=0 THEN excluded.last_run ELSE last_success END',
+                           (now, now if failures == 0 else 0, failures))
+    return {'completed': completed, 'failed': failures, 'pending': outstanding, 'unresolved_requests': unresolved}
+
+
+def health(store, *, now=None, max_worker_age=900, max_queue_age=86400):
+    now = int(time.time()) if now is None else now
+    with store.db() as connection:
+        worker = connection.execute('SELECT last_run,last_success FROM privacy_worker_state WHERE singleton=1').fetchone()
+        pending = connection.execute("SELECT COUNT(*) FROM privacy_resources WHERE status='pending' AND created<?",
+                                     (now - max_queue_age,)).fetchone()[0]
+        unresolved = connection.execute("SELECT COUNT(*) FROM privacy_requests WHERE status='open' AND created<?",
+                                        (now - max_queue_age,)).fetchone()[0]
+    age = now - worker['last_success'] if worker and worker['last_success'] else None
+    return {'healthy': age is not None and age <= max_worker_age and pending == 0 and unresolved == 0,
+            'worker_success_age_seconds': age, 'overdue_deletions': pending, 'overdue_discoveries': unresolved}
 
 
 def revoke_user(store, subject):
@@ -124,6 +143,7 @@ def main():
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--drain', action='store_true')
     group.add_argument('--status', action='store_true')
+    group.add_argument('--check', action='store_true', help='Exit nonzero for stale cleanup or overdue deletion/discovery; prints no identifiers')
     group.add_argument('--revoke-user', metavar='OIDC_SUBJECT')
     group.add_argument('--export-user', metavar='OIDC_SUBJECT')
     parser.add_argument('--output', help='New private output file for an export')
@@ -131,6 +151,10 @@ def main():
     args = parser.parse_args()
     config = json.loads(Path(os.environ['ZAEME_AUTH_CONFIG']).read_text())
     store = PrivacyStore(config['database'], config['cookie_secret'])
+    if args.check:
+        result = health(store)
+        print(json.dumps(result))
+        return 0 if result['healthy'] else 2
     if args.drain:
         result = drain(store)
         print(json.dumps(result))

@@ -12,7 +12,7 @@
     <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=1" />
     <link rel="stylesheet" href="styles.css?v=64" />
     <link rel="stylesheet" href="donation.css?v=2" />
-    <script src="app.js?v=66" defer></script>
+    <script src="app.js?v=67" defer></script>
     <script src="donation.js?v=2" defer></script>
   </head>
   <body class="is-home">
@@ -317,7 +317,7 @@
       >
         <div class="donation-intro">
           <h1 id="donate-title">Mehr Nähe im Alltag<span class="period">.</span></h1>
-          <p>Zäme ist ein gemeinnütziges Projekt für Menschen mit Demenz. Wir möchten vertraute Gesprächsmomente ermöglichen – einfach auf Knopfdruck und kostenlos. Erinnerungen und Vorlieben, die Angehörige einbringen, helfen Zäme, an das anzuknüpfen, was persönlich zählt.</p>
+          <p>Zäme ist ein offenes Projekt für Menschen mit Demenz. Wir möchten vertraute Gesprächsmomente ermöglichen – einfach auf Knopfdruck und kostenlos. Erinnerungen und Vorlieben, die Angehörige einbringen, helfen Zäme, an das anzuknüpfen, was persönlich zählt.</p>
         </div>
         <div class="donation-support">
           <div class="donation-appeal">
@@ -423,6 +423,18 @@
         <label class="consent-check"><input id="consent-terms" type="checkbox" required><span>Ich akzeptiere die <a href="nutzungsbedingungen" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen</a> für Zäme.</span></label>
         <p id="consent-error" role="alert"></p>
         <div class="dialog-actions"><button id="consent-cancel" class="button button-quiet" type="button">Abbrechen</button><button id="consent-submit" class="button button-primary" type="submit">Freigeben</button></div>
+      </form>
+    </dialog>
+    <dialog id="voice-notice" class="app-dialog privacy-dialog" aria-labelledby="voice-notice-title">
+      <form id="voice-notice-form">
+        <h2 id="voice-notice-title" tabindex="-1" autofocus>Bevor wir sprechen</h2>
+        <p>Im Gespräch: <strong id="voice-notice-people"></strong></p>
+        <p>Zäme ist eine KI, kein Mensch. ElevenLabs und Infomaniak verarbeiten eure Sprache und die ausgewählten Buchinhalte, teilweise im Ausland.</p>
+        <p>Bitte keine Diagnosen, Medikamente oder Geheimnisse erzählen. Zäme kann sich irren. Du kannst jederzeit mit dem grossen Knopf aufhören. Es hört keine Betreuungsperson mit.</p>
+        <p id="voice-notice-test">Diese Testversion ist nur für erfundene Angaben gedacht – auch im Gespräch.</p>
+        <label class="consent-check"><input id="voice-notice-confirmed" type="checkbox" required><span>Alle Anwesenden wurden verständlich informiert und stimmen freiwillig zu. Falls eine Vertretung nötig ist, ist sie für diese Entscheidung befugt. Niemand wird gegen seinen erkennbaren Willen aufgenommen.</span></label>
+        <p><a href="datenschutz" target="_blank" rel="noopener noreferrer">Mehr über eure Daten</a></p>
+        <div class="dialog-actions"><button id="voice-notice-cancel" type="button" class="button button-quiet">Jetzt nicht</button><button id="voice-notice-start" type="submit" class="button button-primary" disabled>Gespräch starten</button></div>
       </form>
     </dialog>
     <dialog id="summary-review" class="app-dialog privacy-dialog" aria-labelledby="summary-title">

@@ -9,7 +9,7 @@ from joserfc import jwt
 from joserfc.jwk import RSAKey
 
 from web_service import ISSUER, create_app
-from privacy_store import VERSION
+from privacy_store import VERSION, VOICE_NOTICE_VERSION
 
 BASE = 'https://example.com'
 
@@ -177,14 +177,14 @@ class WebServiceTest(unittest.TestCase):
         upstream.json.return_value = payload
         with patch('web_service.requests.request', return_value=upstream) as proxy:
             response = self.client.post('/zaeme/api/agents/session', base_url=BASE,
-                headers={'Origin': BASE}, json={'profiles': [book]})
+                headers={'Origin': BASE}, json={'profiles': [book], 'voice_notice': {'version': VOICE_NOTICE_VERSION, 'confirmed': True}})
             self.assertEqual(response.status_code, 200)
             self.assertEqual(proxy.call_args.kwargs['headers']['X-Zaeme-Voice-Transport'], 'websocket')
             self.assertIn('X-Zaeme-Privacy', proxy.call_args.kwargs['headers'])
             self.assertIn(BASE.replace('https:', 'wss:') + '/zaeme/voice/', response.json['signed_url'])
             self.assertNotIn(b'private', response.data)
             self.assertEqual(self.client.post('/zaeme/api/agents/session', base_url=BASE,
-                headers={'Origin': BASE}, json={'profiles': [book]}).status_code, 429)
+                headers={'Origin': BASE}, json={'profiles': [book], 'voice_notice': {'version': VOICE_NOTICE_VERSION, 'confirmed': True}}).status_code, 429)
 
     def test_cross_site_and_missing_origin_blocked(self):
         self.login()

@@ -1095,3 +1095,63 @@ test("offline withdrawal blocks locally and keeps an explicit retry queued", asy
   assert.equal(p.$("retry-privacy").hidden,false);
   assert.equal(p.window.eval('hasConsent(currentPerson())'),false);
 });
+
+test('each hosted conversation needs a fresh notice for the unchanged participants', async () => {
+  const p = createPage(window => {
+    window.ZAEME_AUTH = {enabled:true,authenticated:true,storage_id:'notice',privacy:{version:'2026-10-09.1'}};
+  });
+  p.window.eval('addPerson({book:"notice-book",receipt:"synthetic",version:"2026-10-09.1"}); currentPerson().name="Fiktiv"; setSelection([currentPerson().id]);');
+  let notice = p.window.eval('requestConversationNotice(selectedPeople())');
+  assert.equal(p.$('voice-notice').open,true);
+  assert.equal(p.$('voice-notice-confirmed').checked,false);
+  assert.equal(p.$('voice-notice-start').disabled,true);
+  p.$('voice-notice-form').dispatchEvent(new p.window.Event('submit',{cancelable:true}));
+  assert.equal(p.$('voice-notice').open,true);
+  p.$('voice-notice-confirmed').checked=true;
+  p.$('voice-notice-confirmed').dispatchEvent(new p.window.Event('change'));
+  p.$('voice-notice-form').dispatchEvent(new p.window.Event('submit',{cancelable:true}));
+  assert.deepEqual(JSON.parse(JSON.stringify(await notice)),{version:'2026-10-09.1',confirmed:true});
+  notice=p.window.eval('requestConversationNotice(selectedPeople())');
+  assert.equal(p.$('voice-notice-confirmed').checked,false);
+  p.click('voice-notice-cancel'); assert.equal(await notice,null);
+  notice=p.window.eval('requestConversationNotice(selectedPeople())');
+  p.window.readState().people[0].name='Changed';
+  p.$('voice-notice-confirmed').checked=true;
+  p.$('voice-notice-form').dispatchEvent(new p.window.Event('submit',{cancelable:true}));
+  assert.equal(await notice,null);
+});
+
+test('hosted voice performs no API or microphone setup before notice confirmation', async () => {
+  let requests=0, starts=0;
+  const agentSource=fs.readFileSync(path.join(root,'voice-agent.js'),'utf8').replace("import { Conversation } from '@elevenlabs/client';",'');
+  const p=createPage(window=>{
+    window.ZAEME_AUTH={enabled:true,authenticated:true,storage_id:'voice-gate',privacy:{version:'2026-10-09.1'}};
+    window.fetch=async(url,options)=>{
+      requests++;
+      assert.equal(url,'api/agents/session');
+      assert.deepEqual(JSON.parse(options.body).voice_notice,{version:'2026-10-09.1',confirmed:true});
+      return {ok:true,json:async()=>({backend:'agents',token:'synthetic',max_seconds:600})};
+    };
+    window.Conversation={startSession:async()=>{starts++;return {getId:()=> 'synthetic',endSession:async()=>{}};}};
+    window.setTimeout=()=>0;
+  },agentSource);
+  p.window.eval('addPerson({book:"book",receipt:"synthetic",version:"2026-10-09.1"});currentPerson().name="Fiktiv";setSelection([currentPerson().id]);showView("home");');
+  p.click('talk-button');
+  await new Promise(setImmediate);
+  assert.equal(requests,0);assert.equal(starts,0);
+  p.click('voice-notice-cancel');
+  await new Promise(setImmediate);
+  assert.equal(requests,0);assert.equal(starts,0);
+  p.click('talk-button');
+  p.$('voice-notice-confirmed').checked=true;
+  p.$('voice-notice-form').dispatchEvent(new p.window.Event('submit',{cancelable:true}));
+  await new Promise(setImmediate);
+  assert.equal(requests,1);assert.equal(starts,1);
+  p.click('talk-button');
+  await new Promise(setImmediate);
+  p.click('talk-button');
+  assert.equal(p.$('voice-notice-confirmed').checked,false);
+  p.$('voice-notice').close();
+  await new Promise(setImmediate);
+  assert.equal(requests,1);assert.equal(starts,1);
+});
