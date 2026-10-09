@@ -15,8 +15,8 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 
-VERSION = '2026-10-09.1'
-VOICE_NOTICE_VERSION = '2026-10-09.1'
+VERSION = '2026-10-09.2'
+VOICE_NOTICE_VERSION = '2026-10-09.2'
 
 
 def real_profiles_allowed(config, subject):

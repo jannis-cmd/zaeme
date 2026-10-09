@@ -17,7 +17,9 @@ Hosting the login locally does not make the audio or model pipeline Swiss-only.
   seven days. App logout revokes the local session and redirects to ZITADEL logout.
   Disabling a provider account does not immediately revoke existing app sessions;
   incident response must also revoke its app sessions.
-- Every POST needs the exact public Origin; the voice relay checks Origin too.
+- API POSTs and the voice relay require the exact public Origin. Native access
+  forms require a session-bound CSRF token and reject foreign Origins; null or
+  missing Origin is accepted only with that token.
   Host validation, body bounds, CSP nonces, framing protection and restricted
   browser permissions provide additional layers.
 - SQLite burst controls survive restart and cookie deletion. Client IPs are keyed
@@ -27,7 +29,9 @@ Hosting the login locally does not make the audio or model pipeline Swiss-only.
 
 ## Authenticated voice and consent
 
-Hosted processing requires login; there is no anonymous trial. Every selected
+Hosted processing requires an invitation and verified login; there is no anonymous trial.
+The live deployment is restricted to fictional-profile testing. A shared MYNA
+account alone grants no app access. Every selected
 book needs a current account-bound, versioned consent receipt. Real-person
 profiles remain disabled until all documented operator gates are met. Separate
 terms acceptance is required before a book is collected. Summaries require human
@@ -77,8 +81,12 @@ Git history; `.gitignore` does not remove already tracked secrets. If a credenti
 is exposed, revoke/rotate it; deleting the file alone does not repair exposure.
 GitHub secret scanning/push protection and dependency alerts supplement this review.
 
-Do not put credentials or personal care data in public issues. Until a private
-security-reporting channel is established, coordinate directly with the maintainer
-before sharing a sensitive report.
+Do not put credentials or personal care data in public issues. Report vulnerabilities privately to **info@myna-ai.ch**. Do not include live
+secrets, care data or exploit details in a public issue; arrange a suitable
+channel before sharing sensitive evidence.
 
 See [privacy operations](docs/PRIVACY-OPERATIONS.md) for consent gates, deletion, rights requests, incidents and backup restoration. These controls reduce risk; they do not certify suitability for care or replace a documented risk/contract review.
+
+The [current project status](docs/PROJECT-STATUS.md) records the restricted test
+stage and unresolved privacy/provider conditions. A paused development schedule
+does not remove patching, monitoring or rights-handling duties.

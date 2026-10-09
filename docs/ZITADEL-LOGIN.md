@@ -7,14 +7,16 @@ emails and the BYO language model; ZITADEL is the identity provider.
 Authlib validates state, signed ID tokens, issuer, audience, expiry and nonce.
 Userinfo must match the validated subject. OAuth tokens are discarded. Seven-day
 app sessions use opaque Secure/HttpOnly/SameSite=Lax cookies scoped to `/zaeme/`;
-SQLite stores only token hashes. POST and voice connections require the exact
-public Origin. Logout revokes the app session and redirects to ZITADEL logout.
+SQLite stores only token hashes. API POSTs and voice connections require the exact
+public Origin; native invitation forms use session-bound CSRF tokens. Logout revokes the app session and redirects to ZITADEL logout.
 The account menu also offers revocation of all app sessions; this does not sign
 out other applications or automatically disable the ZITADEL account.
 
 ## Access and storage
 
-Login is mandatory for books, summaries and conversations. The logged-out family
+Invitation-only access and verified login are mandatory for books, summaries and
+conversations. This deployment remains a fictional-profile test; see
+[current status](PROJECT-STATUS.md). The logged-out family
 shell displays a login explanation without profile contents. Donations and legal
 pages remain public. There is no guest trial and no automatic guest-book import.
 

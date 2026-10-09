@@ -857,7 +857,7 @@ test("login never imports guest books; account libraries and unlimited book coun
   });
   assert.equal(p.window.readState().people.length, 0);
   assert.equal(p.window.localStorage.getItem("hearth.guest.v3"), guest);
-  p.window.eval('for (let i=0;i<4;i++) addPerson({book:"book-"+i,receipt:"synthetic",version:"2026-10-09.1",role:"fictional"});');
+  p.window.eval('for (let i=0;i<4;i++) addPerson({book:"book-"+i,receipt:"synthetic",version:"2026-10-09.2",role:"fictional"});');
   assert.equal(p.window.readState().people.length, 4);
   const q = createPage(window => {
     window.ZAEME_AUTH = { enabled: true, authenticated: true, storage_id: "second" };
@@ -1059,7 +1059,7 @@ test("book covers keep their identity through selection, deletion and reload", (
 test("public new book requires an unchecked explicit grant before collecting data", async () => {
   let requests = 0;
   const p = createPage(window => {
-    window.ZAEME_AUTH = {enabled:true, authenticated:true, storage_id:"consent", privacy:{version:"2026-10-09.1",real_allowed:false}};
+    window.ZAEME_AUTH = {enabled:true, authenticated:true, storage_id:"consent", privacy:{version:"2026-10-09.2",real_allowed:false}};
     window.fetch = async (url, options) => {
       requests++;
       assert.equal(url, "privacy/grant");
@@ -1084,10 +1084,10 @@ test("public new book requires an unchecked explicit grant before collecting dat
 
 test("offline withdrawal blocks locally and keeps an explicit retry queued", async () => {
   const p=createPage(window=> {
-    window.ZAEME_AUTH={enabled:true,authenticated:true,storage_id:"offline",privacy:{version:"2026-10-09.1"}};
+    window.ZAEME_AUTH={enabled:true,authenticated:true,storage_id:"offline",privacy:{version:"2026-10-09.2"}};
     window.fetch=async()=>{throw new Error("offline");};
   });
-  p.window.eval('addPerson({book:"book",receipt:"synthetic",version:"2026-10-09.1",role:"fictional"});');
+  p.window.eval('addPerson({book:"book",receipt:"synthetic",version:"2026-10-09.2",role:"fictional"});');
   await p.window.eval('revokeBook(currentPerson())');
   assert.equal(p.window.readState().people[0].privacy.revoked,true);
   assert.equal(p.window.readState().privacyPending.length,1);
@@ -1098,9 +1098,9 @@ test("offline withdrawal blocks locally and keeps an explicit retry queued", asy
 
 test('each hosted conversation needs a fresh notice for the unchanged participants', async () => {
   const p = createPage(window => {
-    window.ZAEME_AUTH = {enabled:true,authenticated:true,storage_id:'notice',privacy:{version:'2026-10-09.1'}};
+    window.ZAEME_AUTH = {enabled:true,authenticated:true,storage_id:'notice',privacy:{version:'2026-10-09.2'}};
   });
-  p.window.eval('addPerson({book:"notice-book",receipt:"synthetic",version:"2026-10-09.1"}); currentPerson().name="Fiktiv"; setSelection([currentPerson().id]);');
+  p.window.eval('addPerson({book:"notice-book",receipt:"synthetic",version:"2026-10-09.2"}); currentPerson().name="Fiktiv"; setSelection([currentPerson().id]);');
   let notice = p.window.eval('requestConversationNotice(selectedPeople())');
   assert.equal(p.$('voice-notice').open,true);
   assert.equal(p.$('voice-notice-confirmed').checked,false);
@@ -1110,7 +1110,7 @@ test('each hosted conversation needs a fresh notice for the unchanged participan
   p.$('voice-notice-confirmed').checked=true;
   p.$('voice-notice-confirmed').dispatchEvent(new p.window.Event('change'));
   p.$('voice-notice-form').dispatchEvent(new p.window.Event('submit',{cancelable:true}));
-  assert.deepEqual(JSON.parse(JSON.stringify(await notice)),{version:'2026-10-09.1',confirmed:true});
+  assert.deepEqual(JSON.parse(JSON.stringify(await notice)),{version:'2026-10-09.2',confirmed:true});
   notice=p.window.eval('requestConversationNotice(selectedPeople())');
   assert.equal(p.$('voice-notice-confirmed').checked,false);
   p.click('voice-notice-cancel'); assert.equal(await notice,null);
@@ -1125,17 +1125,17 @@ test('hosted voice performs no API or microphone setup before notice confirmatio
   let requests=0, starts=0;
   const agentSource=fs.readFileSync(path.join(root,'voice-agent.js'),'utf8').replace("import { Conversation } from '@elevenlabs/client';",'');
   const p=createPage(window=>{
-    window.ZAEME_AUTH={enabled:true,authenticated:true,storage_id:'voice-gate',privacy:{version:'2026-10-09.1'}};
+    window.ZAEME_AUTH={enabled:true,authenticated:true,storage_id:'voice-gate',privacy:{version:'2026-10-09.2'}};
     window.fetch=async(url,options)=>{
       requests++;
       assert.equal(url,'api/agents/session');
-      assert.deepEqual(JSON.parse(options.body).voice_notice,{version:'2026-10-09.1',confirmed:true});
+      assert.deepEqual(JSON.parse(options.body).voice_notice,{version:'2026-10-09.2',confirmed:true});
       return {ok:true,json:async()=>({backend:'agents',token:'synthetic',max_seconds:600})};
     };
     window.Conversation={startSession:async()=>{starts++;return {getId:()=> 'synthetic',endSession:async()=>{}};}};
     window.setTimeout=()=>0;
   },agentSource);
-  p.window.eval('addPerson({book:"book",receipt:"synthetic",version:"2026-10-09.1"});currentPerson().name="Fiktiv";setSelection([currentPerson().id]);showView("home");');
+  p.window.eval('addPerson({book:"book",receipt:"synthetic",version:"2026-10-09.2"});currentPerson().name="Fiktiv";setSelection([currentPerson().id]);showView("home");');
   p.click('talk-button');
   await new Promise(setImmediate);
   assert.equal(requests,0);assert.equal(starts,0);

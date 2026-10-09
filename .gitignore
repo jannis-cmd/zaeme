@@ -38,3 +38,9 @@ test-results/
 
 # Local visual review captures.
 /.impeccable/review/
+
+# Private review reports and ad-hoc credential/recovery files.
+/gitleaks*.json
+/*secret*.txt
+/*password*.txt
+/*.har

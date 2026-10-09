@@ -5,6 +5,16 @@ guest voice relay, provider adapters, deployment configuration, repository histo
 and the shared authentication host. It is a maintenance review, not an independent
 penetration test or a guarantee of security.
 
+## Current-status addendum — 9 October 2026
+
+The historical checks below describe 8 October, not the final deployment.
+Guest access has since been removed, invitation-only access added, and app/auth
+hosting moved to Infomaniak in Switzerland. Native invitation forms now use
+session-bound CSRF tokens; APIs retain strict Origin checks.
+See [project status](PROJECT-STATUS.md) for current limits and open operational work.
+The dependency and secret scans were repeated on 9 October; this is still an
+internal maintenance review, not certification or a full penetration test.
+
 ## Changes
 
 - Added durable, secret-keyed per-IP request-burst controls, with explicitly
@@ -51,5 +61,5 @@ off-server backup
 delivery, restore drills and actionable monitoring need an operational owner.
 
 See [SECURITY.md](../SECURITY.md) for important product boundaries: browser-local
-unencrypted books, shared-origin trust, anonymous cookie reset, seven-day app
+unencrypted books, shared-origin trust, invitation-only testing, seven-day app
 sessions and external model/voice processing.

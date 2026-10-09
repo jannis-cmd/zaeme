@@ -5,8 +5,8 @@ const STORAGE_KEY = AUTH.authenticated && AUTH.storage_id
   ? `zaeme.account.${AUTH.storage_id}.v3` : GUEST_STORAGE_KEY;
 // Guest books are never silently assigned to an authenticated account.
 const NEEDS_LOGIN = AUTH.enabled && !AUTH.authenticated;
-const PRIVACY_VERSION = AUTH.privacy?.version || "2026-10-09.1";
-const VOICE_NOTICE_VERSION = AUTH.privacy?.voice_notice_version || "2026-10-09.1";
+const PRIVACY_VERSION = AUTH.privacy?.version || "2026-10-09.2";
+const VOICE_NOTICE_VERSION = AUTH.privacy?.voice_notice_version || "2026-10-09.2";
 let conversationNoticePending = null;
 let consentTarget = null;
 let privacyRequest = null;

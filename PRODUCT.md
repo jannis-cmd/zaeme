@@ -12,7 +12,7 @@ Zäme is a simple conversation companion for people living with dementia. The ho
 
 ## Existing capabilities
 
-Hosted books and conversations require ZITADEL login. The logged-out family shell shows only a login explanation; donations remain accessible. Books persist locally in account-specific browser storage without synchronization or automatic guest import. Versioned consent precedes new book collection; real-person profiles require documented operator approval. Text memories, participant selection, voice choice and conversation captions remain available. Proposed summaries need human review. Hosted voice notes and classic processing are disabled. Provider configuration is required; payments remain a prototype capability.
+The hosted deployment is an invitation-only test with fictional profiles. Books and conversations require verified ZITADEL login and a separate invitation grant. Real-person use is not released; provider/privacy requirements remain open. The logged-out family shell shows only a login explanation; donations remain accessible. Books persist locally in account-specific browser storage without synchronization or automatic guest import. Versioned consent precedes new book collection; real-person profiles require documented operator approval. Text memories, participant selection, voice choice and conversation captions remain available. Proposed summaries need human review. Hosted voice notes and classic processing are disabled. Provider configuration is required; payments remain a prototype capability.
 
 ## Confirmed constraints
 

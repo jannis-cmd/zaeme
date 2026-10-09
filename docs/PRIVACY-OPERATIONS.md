@@ -7,7 +7,8 @@ Vertretungsnachweise in dieses öffentliche Repository aufnehmen.
 
 ## Tatsächlicher Standard
 
-Die öffentliche App verlangt eine Anmeldung. Anonyme Gesprächszugänge,
+Die gehostete App bleibt in einer geschlossenen Testphase: Einladungszugang und
+bestätigte Anmeldung sind erforderlich. Siehe [aktueller Stand](PROJECT-STATUS.md). Anonyme Gesprächszugänge,
 Sprachnotizen, eigenständige Transkription sowie Classic-/Scribe-/TTS-Pfade sind
 öffentlich deaktiviert. Nur der kontrollierte Agents-Relay darf Gespräche führen.
 Vor jeder Bucherfassung verlangt der Server die aktuelle Freigabeversion und die
@@ -41,8 +42,9 @@ bereits laufenden Prozess mit alter Konfiguration vertrauen.
    behandeln; ein Betreiberhinweis schafft keine technische Isolation.
 2. Für Hetzner, Infomaniak und ElevenLabs die tatsächlich geltenden Vertragsfassungen,
    Auftragsbearbeitungsregelungen, Unterauftragnehmer, Speicherorte und Transferwege
-   privat dokumentieren. Deutschland für die aktuellen App-/Auth-Hosts anhand der
-   Hostmetadaten nachvollziehen. Bei einem Standortwechsel neu prüfen.
+   privat dokumentieren. Schweizer Standort der aktuellen App-/Auth-Hosts anhand der
+   Hostmetadaten nachvollziehen; frühere Hetzner-Sicherungen separat inventarisieren
+   und fristgerecht bereinigen. Bei einem Standortwechsel neu prüfen.
 3. Für ElevenLabs prüfen, dass das Geschäftskonto und die verwendeten Dienste vom
    geltenden DPA erfasst werden. Dessen veröffentlichte SCC-Regelung mit Schweizer
    Anpassungen nicht mit einem pauschalen Nachweis für sämtliche Eigenbearbeitungen
@@ -188,7 +190,7 @@ Pakete aus den offiziellen Betriebssystemquellen verwenden.
 `zaeme-backup-check.timer` prüft stündlich: mindestens ein Archiv mit age-Header,
 private Dateirechte und letzter Archivzeitpunkt vor höchstens 36 Stunden. Fehler
 führen zu Exitcode 2. Diese Metadatenprüfung beweist weder Entschlüsselbarkeit
-noch eine unabhängige Kopie. Auf myna-3 prüft `myna-auth-backup-check.timer` die
+noch eine unabhängige Kopie. Auf dem aktuellen Schweizer Auth-Host prüft `myna-auth-backup-check.timer` die
 bestehenden verschlüsselten ZITADEL-Sicherungen nach denselben Kriterien. Die
 Dateien `deploy/myna-auth-*` gehören nur auf den Auth-Host, die `zaeme-*`-Units
 auf den App-Host.

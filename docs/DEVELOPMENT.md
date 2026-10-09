@@ -6,7 +6,7 @@ Run all commands below from the repository root.
 
 Zäme is an open-source prototype of a gentle voice companion for people living with memory difficulties. Its primary screen has one large conversation button. A separate family screen holds profiles and short, editable memories. It is **not** a medical device, a substitute for human care, or an emergency service.
 
-The current website is an **interactive prototype with a hosted account service**. Profiles and text memories work locally. **ElevenLabs Agents is the default conversation mode**, with Infomaniak as its custom LLM. The original Scribe → Infomaniak → speech pipeline is retained only for private development. The hosted entry point requires ZITADEL login, per-book consent and a revocable server voice relay; it disables classic fallback, direct transcription and voice notes; see [ZITADEL deployment](ZITADEL-LOGIN.md). Payments are not connected.
+The current hosted website is an **invitation-only, fictional-profile test** with a hosted account service. Real-person use has unresolved privacy/provider conditions; see [current status](PROJECT-STATUS.md). Profiles and text memories work locally. **ElevenLabs Agents is the default conversation mode**, with Infomaniak as its custom LLM. The original Scribe → Infomaniak → speech pipeline is retained only for private development. The hosted entry point requires an invitation, verified ZITADEL login, per-book consent and a revocable server voice relay; it disables classic fallback, direct transcription and voice notes; see [ZITADEL deployment](ZITADEL-LOGIN.md). Payments are not connected.
 
 ## Run the website
 
