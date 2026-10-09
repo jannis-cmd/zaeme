@@ -45,6 +45,17 @@ class AgentsGatewayTests(unittest.TestCase):
         self.assertNotIn(b'hearth.agents-test.v3', script)
         self.assertEqual(self.request('GET', '/voice-agent.js'), (200, b'/* synthetic SDK */'))
 
+    def test_legal_pages_are_public_without_voice_sdk(self):
+        for route, heading in [('/impressum', 'Impressum'), ('/datenschutz', 'Datenschutzerklärung')]:
+            with self.subTest(route=route):
+                status, body = self.request('GET', route)
+                self.assertEqual(status, 200)
+                self.assertIn(heading.encode(), body)
+                self.assertIn(b'Myna Technologies Jannis Erni', body)
+                self.assertNotIn(b'<script', body)
+                self.assertEqual(self.request('HEAD', route), (200, b''))
+        self.assertEqual(self.request('GET', '/legal.css')[0], 200)
+
     def test_no_source_or_secret_served(self):
         for method in ('GET', 'HEAD'):
             for path in ('/agents_service.py', '/agents_gateway.py', '/.env.example', '/dist/', '/package-lock.json'):

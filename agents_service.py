@@ -85,7 +85,8 @@ def agent_config(secret_id):
             'call_limits': {'agent_concurrency_limit': 1, 'daily_limit': 30, 'bursting_enabled': False},
             # A busy conversation should fail clearly, never play unexplained hold music.
             'queueing_config': {'enabled': False},
-            'privacy': {'record_voice': False, 'retention_days': 1, 'delete_audio': True},
+            'privacy': {'record_voice': False, 'retention_days': 1, 'delete_audio': True,
+                        'delete_transcript_and_pii': True, 'apply_to_existing_conversations': False},
             'overrides': {'conversation_config_override': {'tts': {'voice_id': True}, 'conversation': {'text_only': True}}},
             'evaluation': {'criteria': []}, 'data_collection': {},
         },
@@ -122,7 +123,8 @@ def setup_persona():
             'auth': {'enable_auth': True},
             'call_limits': {'agent_concurrency_limit': 1, 'daily_limit': 60, 'bursting_enabled': False},
             'queueing_config': {'enabled': False},
-            'privacy': {'record_voice': False, 'retention_days': 1, 'delete_audio': True},
+            'privacy': {'record_voice': False, 'retention_days': 1, 'delete_audio': True,
+                        'delete_transcript_and_pii': True, 'apply_to_existing_conversations': False},
         },
     }
     if config.get('persona_agent_id'):

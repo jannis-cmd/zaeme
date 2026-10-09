@@ -50,8 +50,10 @@ Configure provider spending limits; do not treat browser controls as boundaries.
   shared website path shares this trust boundary. There is no device synchronization.
 - Selected profile facts, summaries, memories, audio and transcripts are processed
   by the configured model/voice services. Audio recording is disabled in Agent
-  setup and one-day conversation retention requested; this is not a zero-retention
-  or residency guarantee. Never log care text, provider bodies, OAuth callback
+  setup. As verified on 9 October 2026, both live agents request one-day retention
+  with transcript/PII and audio deletion for future conversations; this does not
+  retroactively delete older data or guarantee zero retention or residency.
+  Model-training exclusion at ElevenLabs remains unverified. Never log care text, provider bodies, OAuth callback
   queries or voice-ticket URLs.
 - Keep long-lived credentials, SQLite databases, ledgers and recovery material
   outside the repository and web root. Use owner-only files and directories,

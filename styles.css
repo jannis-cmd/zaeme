@@ -1235,3 +1235,9 @@ body:not(.is-home) .talk-button::before { animation-play-state: paused; }
   .tour-next { width: 44px; height: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { .family-tour, .sync-button.needs-refresh .icon { animation: none !important; } }
+
+/* Legal information belongs to the caregiver area; keep the senior home calm. */
+.privacy-test-note { max-width: 72ch; color: var(--muted); font-size: 15px; line-height: 1.6; margin: 0 0 28px; }
+.privacy-test-note a { color: var(--teal-dark); }
+.site-footer .footer-legal { display: flex; flex-basis: 100%; align-items: center; flex-wrap: wrap; gap: 8px 24px; }
+.footer-legal a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; }

@@ -120,7 +120,7 @@ Feedback von Menschen mit Demenz, Angehörigen, Fachpersonen und Entwickler:inne
 
 Feedback from people living with dementia, care partners, professionals and developers is welcome. Please keep personal care data and recordings out of public issues.
 
-[Einrichtung & Entwicklung / Setup & development](docs/DEVELOPMENT.md) · [Sicherheit / Security](SECURITY.md) · [Spenden / Donations](DONATIONS.md) · [MIT licence](LICENSE)
+[Einrichtung & Entwicklung / Setup & development](docs/DEVELOPMENT.md) · [Sicherheit / Security](SECURITY.md) · [Impressum](https://demenzfreundlich-kreis6.ch/zaeme/impressum) · [Datenschutz](https://demenzfreundlich-kreis6.ch/zaeme/datenschutz) · [Spenden / Donations](DONATIONS.md) · [MIT licence](LICENSE)
 
 Partnerlogos sind von der Code-Lizenz ausgenommen. / Partner marks are excluded from the code licence: [notice](assets/NOTICE.md).
 

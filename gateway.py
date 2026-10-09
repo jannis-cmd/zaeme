@@ -11,6 +11,7 @@ from datetime import date
 from email import policy
 from email.parser import BytesParser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from io import BytesIO
 from threading import Lock
 from urllib.parse import unquote, urlsplit
 
@@ -53,7 +54,17 @@ class Gateway(SimpleHTTPRequestHandler):
     def send_head(self):
         # Serve frontend files only, never source, secrets or directory listings (also for HEAD).
         path = unquote(urlsplit(self.path).path).lstrip("/") or "index.html"
-        public_files = {"index.html", "app.js", "styles.css", "capture-worklet.js", "donation.js", "donation.css", "donation.json"}
+        legal_pages = {"impressum": "impressum.html", "datenschutz": "datenschutz.html"}
+        if path in legal_pages:
+            with open(os.path.join(self.directory, legal_pages[path]), "rb") as page:
+                body = page.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            return BytesIO(body)
+        public_files = {"impressum.html", "datenschutz.html", "legal.css", "index.html", "app.js", "styles.css", "capture-worklet.js", "donation.js", "donation.css", "donation.json"}
         asset = path.startswith(("icons/", "fonts/", "assets/")) and path.endswith((".svg", ".png", ".woff2"))
         parts = path.split("/")
         root = os.path.realpath(self.directory)
