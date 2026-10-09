@@ -15,12 +15,13 @@ from urllib.parse import urlsplit, urlencode
 
 import requests
 from authlib.integrations.flask_client import OAuth
-from flask import Flask, Response, abort, g, jsonify, redirect, request, session
+from flask import Flask, Response, abort, g, jsonify, redirect, request, session, render_template
 from flask_sock import Sock
 from threading import Thread
 from guest_access import GuestAccess
 from privacy_store import PrivacyStore, PrivacyError, VERSION, VOICE_NOTICE_VERSION, real_profiles_allowed
 from security_controls import RequestLimits
+from invitation_store import InvitationStore, InvitationError
 
 ISSUER = 'https://auth.myna-ai.ch'
 SESSION_SECONDS = 7 * 24 * 3600
@@ -67,6 +68,26 @@ def create_app(config=None):
         if 'email' not in {row[1] for row in connection.execute('PRAGMA table_info(sessions)')}:
             connection.execute("ALTER TABLE sessions ADD COLUMN email TEXT NOT NULL DEFAULT ''")
     os.chmod(database, 0o600)
+    invitations = InvitationStore(db)
+    invite_only = config.get('invite_only', True)
+    if not isinstance(invite_only, bool):
+        raise ValueError('invite_only must be a boolean')
+    administrators = config.get('invitation_admin_subjects', [])
+    if not isinstance(administrators, list) or any(not isinstance(value, str) or not value for value in administrators):
+        raise ValueError('invitation_admin_subjects must be a list of subjects')
+    app.extensions['zaeme_invitations'] = invitations
+
+    def access_allowed(subject):
+        return bool(subject and (not invite_only or subject in administrators or invitations.allowed(subject)))
+
+    def access_page(message=None, status=200, **values):
+        pending = invitations.pending(session.get('zaeme_invite_id', ''))
+        return render_template('access.html', prefix=prefix, nonce=g.csp_nonce,
+                               title=values.pop('title', 'Zäme auf Einladung'),
+                               pending=pending, signed_in=bool(g.account),
+                               message=message or ('Sie wurden zu Zäme eingeladen. Melden Sie sich an oder erstellen Sie ein MYNA-Konto, um Ihre Einladung anzunehmen.'
+                                                   if pending else 'Zäme ist zurzeit nur mit persönlicher Einladung zugänglich. Haben Sie bereits einen freigegebenen Zugang? Dann können Sie sich hier anmelden.'),
+                               **values), status
     guests = GuestAccess(db, config['cookie_secret'])
     limits = RequestLimits(db, config['cookie_secret'], config.get('trusted_proxy_cidrs', []))
     app.extensions['zaeme_guests'] = guests
@@ -90,7 +111,7 @@ def create_app(config=None):
         g.account = None
         client = limits.client(request)
         scope = request.path.removeprefix(prefix)
-        maximum = {'/auth/login': 10, '/api/agents/session': 18, '/api/persona': 10,
+        maximum = {'/auth/login': 10, '/access/create': 10, '/api/agents/session': 18, '/api/persona': 10,
                    '/api/transcribe': 10, '/api/scribe-token': 6}.get(scope, 60)
         if not limits.allow(client, 'all', 240) or (
                 (request.method == 'POST' or scope == '/auth/login' or scope.startswith('/voice/'))
@@ -137,9 +158,67 @@ def create_app(config=None):
     def account():
         return jsonify(**runtime())
 
+    @app.get(prefix + '/invite/<token>')
+    def invite(token):
+        identity = invitations.lookup(token)
+        if not identity:
+            return access_page('Diese Einladung ist abgelaufen, widerrufen oder bereits verwendet. Bitte fragen Sie nach einem neuen Link.', 410)
+        # Store only a public ID in the signed browser state; remove the bearer
+        # from the address bar before the identity provider is contacted.
+        session['zaeme_invite_id'] = identity
+        return redirect(prefix + '/invite', code=303)
+
+    @app.get(prefix + '/invite')
+    def invitation_landing():
+        return access_page()
+
+    @app.route(prefix + '/access', methods=['GET'])
+    def manage_access():
+        if not g.account:
+            session['zaeme_after_login'] = 'access'
+            return redirect(prefix + '/auth/login')
+        if g.account['subject'] not in administrators:
+            abort(403)
+        return access_page(admin=True, title='Einladungen', invitations=invitations.listing())
+
+    @app.post(prefix + '/access/create')
+    def create_invitation():
+        if not g.account or g.account['subject'] not in administrators:
+            abort(403)
+        try:
+            days = int(request.form.get('days', '7'))
+            _, token = invitations.create(request.form.get('label', ''), days)
+        except (ValueError, InvitationError):
+            return access_page('Die Einladung konnte nicht erstellt werden. Bitte die Angaben prüfen.', 400)
+        return access_page(admin=True, title='Einladung erstellt', invitations=invitations.listing(),
+                           link=config['public_url'].rstrip('/') + '/invite/' + token, days=days)
+
+    @app.post(prefix + '/access/revoke')
+    def revoke_invitation():
+        if not g.account or g.account['subject'] not in administrators:
+            abort(403)
+        invitations.revoke(request.form.get('id', ''))
+        return redirect(prefix + '/access', code=303)
+
+    @app.post(prefix + '/access/logout')
+    def switch_access_account():
+        # Preserve the pending invitation across switching the MYNA account.
+        with db() as connection:
+            connection.execute('DELETE FROM sessions WHERE token=?', (digest(request.cookies.get(COOKIE, '')),))
+        response = redirect(ISSUER + '/oidc/v1/end_session?' + urlencode({
+            'client_id': config['client_id'], 'post_logout_redirect_uri': config['public_url'].rstrip('/') + '/'}), code=303)
+        response.delete_cookie(COOKIE, path=prefix + '/', secure=True, httponly=True, samesite='Lax')
+        return response
+
     @app.get(prefix + '/auth/login')
     def login():
+        pending = session.get('zaeme_invite_id')
+        destination = session.get('zaeme_after_login')
         session.clear()
+        if pending:
+            session['zaeme_invite_id'] = pending
+        if destination == 'access':
+            session['zaeme_after_login'] = destination
         try:
             return provider.authorize_redirect(config['public_url'].rstrip('/') + '/auth/callback', ui_locales='de-CH de')
         except requests.RequestException:
@@ -155,16 +234,27 @@ def create_app(config=None):
             if user.get('iss') != ISSUER or not user.get('sub'):
                 raise ValueError('Missing identity')
             # Code-flow ID tokens may omit email even when the scope is granted.
-            if not user.get('email'):
+            if not user.get('email') or (invite_only and 'email_verified' not in user):
                 profile = provider.userinfo(token=token)
                 if profile.get('sub') != user['sub']:
                     raise ValueError('Userinfo identity mismatch')
                 user = {**user, 'email': profile.get('email', ''),
+                        'email_verified': profile.get('email_verified', False),
                         'name': profile.get('name') or user.get('name', '')}
         except Exception:
             session.clear()
             return Response('Die Anmeldung konnte nicht bestätigt werden. Bitte erneut anmelden.',
                             status=400, content_type='text/plain; charset=utf-8')
+        if invite_only and (not user.get('email') or user.get('email_verified') is not True):
+            return access_page('Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse im MYNA-Konto und melden Sie sich danach erneut an.', 403)
+        pending = session.get('zaeme_invite_id')
+        if pending and not access_allowed(str(user['sub'])):
+            try:
+                invitations.redeem(pending, str(user['sub']))
+            except InvitationError as exc:
+                session.pop('zaeme_invite_id', None)
+                return access_page(str(exc), 403)
+        destination = session.get('zaeme_after_login')
         session.clear()
         opaque = secrets.token_urlsafe(32)
         with db() as connection:
@@ -175,7 +265,7 @@ def create_app(config=None):
             connection.execute('INSERT INTO sessions (token,subject,name,expires,email) VALUES (?, ?, ?, ?, ?)',
                                (digest(opaque), str(user['sub']), str(user.get('name', ''))[:120],
                                 int(time.time()) + SESSION_SECONDS, str(user.get('email', ''))[:320]))
-        response = redirect(prefix + '/')
+        response = redirect(prefix + ('/access' if destination == 'access' else '/'))
         response.set_cookie(COOKIE, opaque, max_age=SESSION_SECONDS, path=prefix + '/',
                             secure=True, httponly=True, samesite='Lax')
         return response
@@ -196,6 +286,8 @@ def create_app(config=None):
 
     def context_valid(value):
         try:
+            if not g.account or not access_allowed(g.account['subject']):
+                return False
             privacy.verify_context(value)
             return True
         except PrivacyError:
@@ -208,9 +300,11 @@ def create_app(config=None):
     def privacy_action(action):
         if not g.account:
             return jsonify(error='Bitte zuerst anmelden.'), 401
+        if action == 'grant' and not access_allowed(g.account['subject']):
+            return jsonify(error='Für Zäme ist eine persönliche Einladung erforderlich.'), 403
         owner = privacy_owner()
         if action == 'export' and request.method == 'GET':
-            return jsonify(**privacy.export(owner))
+            return jsonify(**privacy.export(owner), app_access=invitations.export(g.account['subject']))
         if request.method != 'POST':
             abort(405)
         data = request.get_json(silent=True)
@@ -236,6 +330,9 @@ def create_app(config=None):
                 # Pseudonymous storage namespace, never raw OAuth identifiers.
                 'storage_id': digest(ISSUER + ':' + g.account['subject']) if g.account else None,
                 'guest_seconds': None, 'login_required': True,
+                'invite_only': invite_only,
+                'access_granted': bool(g.account and access_allowed(g.account['subject'])),
+                'invitation_admin': bool(g.account and g.account['subject'] in administrators),
                 'privacy': {'version': VERSION, 'voice_notice_version': VOICE_NOTICE_VERSION,
                             'real_allowed': real_allowed(), 'voice_notes': False}}
 
@@ -262,16 +359,17 @@ def create_app(config=None):
         if request.headers.get('Origin') != public.scheme + '://' + public.netloc:
             ws.close()
             return
-        if not g.account:
+        if not g.account or not access_allowed(g.account['subject']):
             ws.close()
             return
         opaque = request.cookies.get(COOKIE, '')
         real_permission = real_allowed()
+        subject = g.account['subject']
         def allowed(payload):
             with db() as connection:
                 valid = connection.execute('SELECT 1 FROM sessions WHERE token=? AND expires>?',
                                            (digest(opaque), int(time.time()))).fetchone()
-            return bool(valid and privacy.active(payload['_owner'], payload['_books'], real_permission))
+            return bool(valid and access_allowed(subject) and privacy.active(payload['_owner'], payload['_books'], real_permission))
         def register(payload, resource):
             privacy.register(payload['_owner'], payload['_books'], resource, payload['_request'])
         voices.relay(ws, ticket, opaque, settle_guest, allowed, register,
@@ -284,6 +382,11 @@ def create_app(config=None):
             abort(404)
         if path.startswith('auth/'):
             abort(404)
+        public_asset = path in {'impressum', 'datenschutz', 'nutzungsbedingungen', 'impressum.html', 'datenschutz.html', 'nutzungsbedingungen.html', 'legal.css'} or path.startswith('fonts/')
+        if invite_only and not public_asset and not (g.account and access_allowed(g.account['subject'])):
+            if path.startswith('api/') or request.method == 'POST':
+                return jsonify(error='Für Zäme ist eine persönliche Einladung erforderlich.'), 403 if g.account else 401
+            return access_page(status=200 if path in ('', 'index.html') else 403)
         if request.method in ('GET', 'HEAD') and path.startswith('api/') and path != 'api/status':
             abort(405)
         if request.method == 'POST':

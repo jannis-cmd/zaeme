@@ -14,6 +14,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from privacy_store import PrivacyStore
+from invitation_store import InvitationStore
 
 
 def delete_conversation(resource):
@@ -76,6 +77,7 @@ def reconcile_requests(store, discover=discover_conversations):
 def drain(store, delete=delete_conversation, discover=discover_conversations):
     discovery_failed = reconcile_requests(store, discover)
     store.cleanup()
+    InvitationStore(store.db).cleanup()
     now = int(time.time())
     with store.db() as connection:
         rows = connection.execute("SELECT resource,attempts FROM privacy_resources WHERE status='pending' "

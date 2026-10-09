@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{ title }} · Zäme</title>
+  <style>
+    * { box-sizing: border-box; }
+    @font-face { font-family: 'Nunito Sans'; src: url('{{ prefix }}/fonts/nunito-sans-latin-400-normal.woff2') format('woff2'); font-weight: 400; font-display: swap; }
+    @font-face { font-family: 'Nunito Sans'; src: url('{{ prefix }}/fonts/nunito-sans-latin-700-normal.woff2') format('woff2'); font-weight: 700; font-display: swap; }
+    body { margin: 0; background: #f7f4ef; color: #2e3830; font: 18px/1.55 'Nunito Sans', system-ui, sans-serif; }
+    main { max-width: 680px; margin: 9vh auto; padding: 28px; }
+    .brand { font-weight: 800; font-size: 28px; text-decoration: none; color: inherit; }
+    .brand span:nth-child(1) { color: #3ab7cb; } .brand span:nth-child(2) { color: #7e3093; } .brand span:nth-child(3) { color: #ff674e; } .brand span:nth-child(4) { color: #feca00; }
+    h1 { font-size: clamp(28px, 5vw, 38px); line-height: 1.2; margin: 36px 0 16px; }
+    p { margin: 0 0 24px; }
+    a { color: inherit; text-underline-offset: 3px; }
+    button, .button { display: inline-block; font: inherit; font-weight: 700; background: #116b5b; color: white; border: 0; border-radius: 12px; padding: 14px 20px; text-decoration: none; cursor: pointer; }
+    :focus-visible { outline: 3px solid #116b5b; outline-offset: 4px; }
+    label { display: block; margin-top: 18px; }
+    input, select { display: block; width: 100%; font: inherit; border: 1px solid #86938b; border-radius: 8px; background: white; color: inherit; padding: 12px; margin: 6px 0 18px; }
+    .result { padding: 20px; border: 1px solid #86938b; border-radius: 14px; margin: 28px 0; overflow-wrap: anywhere; }
+    .entry { padding: 20px 0; border-top: 1px solid #d3d8cf; }
+    .entry p { margin: 4px 0 12px; }
+    .entry button { padding: 9px 14px; background: transparent; border: 1px solid #86938b; color: inherit; }
+    .small, footer { font-size: 15px; }
+    footer { margin-top: 48px; display: flex; flex-wrap: wrap; gap: 18px; }
+  </style>
+</head>
+<body>
+<main>
+  <a class="brand" href="{{ prefix }}/" aria-label="Zäme"><span>Z</span><span>ä</span><span>m</span><span>e</span></a>
+  <h1>{{ title }}</h1>
+  {% if admin %}
+    <p>Erstellen Sie für jede Person einen eigenen Link. Er kann einmal verwendet werden. Danach meldet sich die Person mit ihrem MYNA-Konto an.</p>
+    {% if link %}
+    <section class="result" aria-label="Neue Einladung">
+      <strong>Der Einladungslink ist bereit.</strong>
+      <p class="small">Kopieren Sie ihn jetzt und senden Sie ihn an die gewünschte Person. Er wird hier nur einmal angezeigt und ist {{ days }} Tage gültig.</p>
+      <label for="invite-link">Einladungslink</label>
+      <input id="invite-link" type="text" readonly value="{{ link }}">
+      <button id="copy-link" type="button">Link kopieren</button>
+      <span id="copy-status" role="status"></span>
+    </section>
+    {% endif %}
+    <form method="post" action="{{ prefix }}/access/create">
+      <label for="label">Bezeichnung für Ihre Übersicht (optional)</label>
+      <input id="label" name="label" maxlength="80" placeholder="Zum Beispiel: Einladung Oktober">
+      <label for="days">Link gültig für</label>
+      <select id="days" name="days"><option value="7">7 Tage</option><option value="1">1 Tag</option><option value="30">30 Tage</option></select>
+      <button type="submit">Einladungslink erstellen</button>
+    </form>
+    <h2>Bisherige Einladungen</h2>
+    {% for item in invitations %}
+    <section class="entry">
+      <strong>{{ item.label }}</strong><p class="small">{{ item.status }}</p>
+      {% if not item.revoked %}<form method="post" action="{{ prefix }}/access/revoke"><input type="hidden" name="id" value="{{ item.id }}"><button type="submit">Einladung und Zugang widerrufen</button></form>{% endif %}
+    </section>
+    {% else %}<p>Noch keine Einladungen erstellt.</p>{% endfor %}
+    <p class="small">Ein abgelaufener Link beendet einen bereits erteilten Zugang nicht. Mit „Widerrufen“ sperren Sie auch den Zugang und laufende Gespräche.</p>
+  {% else %}
+    <p>{{ message }}</p>
+    {% if pending %}<a class="button" href="{{ prefix }}/auth/login">Registrieren oder anmelden</a>
+    <p class="small" style="margin-top:20px">Das gemeinsame MYNA-Konto bestätigt Ihre E-Mail-Adresse. Diese Einladung schaltet anschliessend Zäme für Ihr Konto frei.</p>
+    {% else %}<a class="button" href="{{ prefix }}/auth/login">Mit bestehendem Zugang anmelden</a>{% endif %}
+    {% if signed_in %}<p class="small" style="margin-top:20px">Für dieses Konto ist kein Zäme-Zugang freigegeben.</p><form method="post" action="{{ prefix }}/access/logout"><button type="submit">Anderes Konto verwenden</button></form><p class="small" style="margin-top:20px"><a href="{{ prefix }}/privacy/export">Meine Datenschutzdaten herunterladen</a></p>{% endif %}
+  {% endif %}
+  <footer><a href="{{ prefix }}/impressum.html">Impressum</a><a href="{{ prefix }}/datenschutz.html">Datenschutz</a><a href="{{ prefix }}/nutzungsbedingungen.html">Nutzungsbedingungen</a>{% if admin %}<a href="{{ prefix }}/">Zur App</a>{% endif %}</footer>
+</main>
+{% if admin and link %}
+<script nonce="{{ nonce }}">
+document.getElementById('copy-link').addEventListener('click', async () => {
+  const input = document.getElementById('invite-link');
+  try { await navigator.clipboard.writeText(input.value); document.getElementById('copy-status').textContent = ' Link kopiert.'; }
+  catch { input.focus(); input.select(); document.getElementById('copy-status').textContent = ' Bitte den markierten Link kopieren.'; }
+});
+</script>
+{% endif %}
+</body>
+</html>

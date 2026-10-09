@@ -1535,6 +1535,8 @@ for (const choice of document.querySelectorAll('input[name="voice-gender"]')) {
 }
 window.addEventListener("pagehide", () => stopConversation());
 const accountButton = $("login-button");
+$("invitations-button").hidden = !AUTH.invitation_admin;
+$("invitations-button").addEventListener("click", () => window.location.assign("access"));
 accountButton.classList.toggle("is-authenticated", AUTH.authenticated);
 $("account-icon").className = `icon ${AUTH.authenticated ? "icon-profile" : "icon-login"}`;
 $("account-label").hidden = !!AUTH.authenticated;

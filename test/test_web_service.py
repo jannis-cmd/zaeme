@@ -20,6 +20,8 @@ class WebServiceTest(unittest.TestCase):
         self.addCleanup(self.folder.cleanup)
         self.config = dict(public_url=BASE + '/zaeme', client_id='synthetic-client',
                            client_secret='synthetic-secret', cookie_secret='synthetic-cookie-key',
+                           invite_only=getattr(self, 'INVITE_ONLY', False),
+                           invitation_admin_subjects=['synthetic-admin'],
                            database=str(Path(self.folder.name) / 'auth.sqlite3'))
         self.app = create_app(self.config)
         self.app.testing = True
@@ -38,7 +40,7 @@ class WebServiceTest(unittest.TestCase):
         self.assertEqual(params['code_challenge_method'], ['S256'])
         self.assertEqual(set(params['scope'][0].split()), {'openid', 'profile', 'email'})
         claims = dict(iss=ISSUER, sub='synthetic-user', aud='synthetic-client',
-                      email='test@example.com', exp=int(time.time()) + 300, iat=int(time.time()), nonce=params['nonce'][0])
+                      email='test@example.com', email_verified=True, exp=int(time.time()) + 300, iat=int(time.time()), nonce=params['nonce'][0])
         claims.update(changes or {})
         signed = jwt.encode({'alg': 'RS256'}, claims, self.key)
         token = {'access_token': 'synthetic-access', 'id_token': signed, 'token_type': 'Bearer'}

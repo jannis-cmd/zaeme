@@ -21,6 +21,7 @@ class GuestAccessTest(unittest.TestCase):
         self.addCleanup(self.folder.cleanup)
         self.config = dict(public_url='https://example.com/zaeme', client_id='test',
                            client_secret='test', cookie_secret='test-secret',
+                           invite_only=False,
                            database=str(Path(self.folder.name) / 'auth.sqlite3'))
         self.access = create_app(self.config).extensions['zaeme_guests']
         self.cookie = self.access.identify(None)
@@ -147,9 +148,12 @@ class GuestAccessTest(unittest.TestCase):
             return ws
 
         with patch('guest_access.GUEST_SECONDS', 0.3):
+            self.config['invite_only'] = True
             app = create_app(self.config)
+            invitation, _ = app.extensions['zaeme_invitations'].create()
+            app.extensions['zaeme_invitations'].redeem(invitation, 'synthetic-user')
             self.access = app.extensions['zaeme_voices']
-            self.access.seconds = 0.3
+            self.access.seconds = 10 if getattr(self, 'revoke_during_voice', False) else 0.3
             self.cookie = self.access.identify('synthetic-session')
             store = app.extensions['zaeme_privacy']
             receipt = store.grant(store.owner('synthetic-user'), {'book': 'synthetic-book', 'role': 'fictional',
@@ -187,13 +191,15 @@ class GuestAccessTest(unittest.TestCase):
                         self.assertEqual(json.loads(client.recv())['type'], 'conversation_initiation_metadata')
                         self.assertEqual(provider.sent[0]['dynamic_variables']['profiles'], self.payload['profiles'])
                         self.assertNotIn('agent', provider.sent[0]['conversation_config_override'])
+                        if getattr(self, 'revoke_during_voice', False):
+                            app.extensions['zaeme_invitations'].revoke(invitation)
                         self.assertEqual(client.recv(), '')
                     finally:
                         client.close()
                         client.shutdown()
                     time.sleep(0.05)
                     self.assertTrue(provider.closed)
-                    self.assertEqual(self.access.remaining(self.cookie), 0.3)
+                self.assertEqual(self.access.remaining(self.cookie), self.access.seconds)
             finally:
                 server.shutdown()
                 server.server_close()
@@ -201,3 +207,7 @@ class GuestAccessTest(unittest.TestCase):
                 # Werkzeug's test WS upgrade hands socket ownership to Flask-Sock.
                 for accepted in accepted_sockets:
                     accepted.close()
+
+    def test_revoking_invitation_closes_an_open_voice_relay(self):
+        self.revoke_during_voice = True
+        self.test_real_websocket_binds_profile_and_closes_at_server_deadline()

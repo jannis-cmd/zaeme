@@ -120,3 +120,42 @@ Install `zaeme-privacy-check.timer` alongside the cleanup timer. `--check` fails
 for stale cleanup (>15 minutes) or pending resources/unresolved requests older
 than 24 hours. Systemd status is local monitoring; the additional `myna-monitor.timer` sends operational alerts. Independent
 whole-host outage detection remains separate.
+
+## Invitation-only Zäme access
+
+Hosted access defaults to `invite_only: true`. ZITADEL remains the shared identity
+provider; registration of a shared account does not grant Zäme access. Existing
+app sessions are not grandfathered. Set `invitation_admin_subjects` in the private
+config to the operator's exact validated ZITADEL subject identifiers. Never grant
+operator access by email string or expose this configuration through the browser.
+
+Operators open `/zaeme/access` or use **Einladungen verwalten** in the account
+menu. Each link is shown once, uses 256 bits of randomness, is single-use and
+expires after 7 days by default (1 or 30 days selectable). Send it privately to
+one recipient. Possession of the link authorises its first verified redeemer;
+it is not bound to a preselected email address. Raw tokens are not stored in
+SQLite, not sent to ZITADEL and not included in access logs.
+
+GET requests only establish pending browser state and redirect to a clean URL;
+mail link scanners do not consume invitations. OIDC still validates state, nonce,
+signature, issuer, audience and PKCE. Redemption requires verified email and an
+atomic database transaction; only one concurrent redeemer succeeds. Zäme grants
+are bound to subject IDs, not email addresses. Link expiry does not terminate
+an issued access grant. Revocation blocks existing sessions and running voice
+relays; privacy export/revocation remain available to signed-in accounts.
+
+Invitation management requires the operator subject and exact POST Origin.
+Non-invited accounts cannot call profile, consent-grant or voice endpoints, and
+receive the invitation gate rather than the app. Legal documents remain public.
+The existing privacy approval gates for real profiles are independent and unchanged.
+
+The privacy cleanup timer removes expired unused invitations after 30 days and
+revoked invitations/access records after 30 days. Include these tables in the
+existing encrypted SQLite backups. Restore must reapply later invitation
+revocations before access resumes; do not revive revoked grants from an old backup.
+
+For a temporary full pause, stop/disable both web and gateway units and use the
+edge pause handler. To run the restricted app, enable both units and restore the
+edge proxy only after verifying `invite_only: true`, operator subjects and access
+tests. Public registration at the shared identity provider is intentionally not
+disabled for other applications.
