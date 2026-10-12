@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="de-CH">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f4ef" />
+    <meta
+      name="description"
+      content="Zäme: ein ruhiger Gesprächsmoment, persönlich vorbereitet von Angehörigen."
+    />
+    <title>Zäme · Ein Gesprächsmoment</title>
+    <link rel="icon" type="image/svg+xml" href="assets/favicon.svg?v=1" />
+    <link rel="stylesheet" href="styles.css?v=64" />
+    <link rel="stylesheet" href="donation.css?v=2" />
+    <script src="app.js?v=68" defer></script>
+    <script src="donation.js?v=2" defer></script>
+  </head>
+  <body class="is-home">
+    <header class="home-header"><div class="header-inner">
+      <a class="brand" href="#start" data-view="home" aria-label="Zäme, zur Startseite"><span class="wordmark" aria-hidden="true"><span>Z</span><span>ä</span><span>m</span><span>e</span></span></a>
+      <button class="home-family-link" type="button" data-view="library">Angehörige</button>
+    </div></header>
+    <div id="family-overlay" class="family-overlay" role="dialog" aria-modal="true" aria-label="Für Angehörige und Spenden" hidden>
+    <div id="family-panel" class="family-panel">
+    <header class="site-header">
+      <div class="header-inner">
+        <a
+          class="brand"
+          href="#start"
+          data-view="home"
+          aria-label="Zäme, zur Startseite"
+          ><span class="brand-symbol" aria-hidden="true"
+            ><i></i><i></i><i></i><i></i></span
+          ><span class="wordmark" aria-hidden="true"
+            ><span>Z</span><span>ä</span><span>m</span><span>e</span></span
+          ></a
+        >
+        <nav aria-label="Hauptnavigation">
+          <div class="nav-family-tab">
+          <button type="button" class="nav-link" data-view="library">
+            Für Angehörige</button
+          ><button type="button" class="nav-link" data-view="donate">
+            Spenden</button
+          ></div><div class="account-control"><button
+            type="button"
+            class="nav-login"
+            id="login-button"
+            aria-label="Konto"
+            title="Konto"
+            aria-expanded="false"
+            aria-controls="account-menu"
+            disabled
+            aria-busy="true"
+          >
+            <span id="account-icon" class="icon icon-profile" aria-hidden="true"></span>
+            <span id="account-label" hidden>Anmelden</span>
+            <span id="account-badge" class="account-badge" aria-hidden="true" hidden><span class="icon icon-check"></span></span>
+          </button>
+          <div class="account-menu" id="account-menu" role="dialog" aria-label="Konto" aria-describedby="account-email" hidden>
+            <p id="account-email" class="account-email"></p>
+            <button type="button" id="invitations-button" hidden>Einladungen verwalten</button>
+            <button type="button" id="logout-button">Abmelden</button>
+            <button type="button" id="logout-all-button">Überall bei Zäme abmelden</button>
+          </div></div>
+          <button type="button" class="icon-button overlay-close nav-speak" data-view="home" aria-label="Schliessen und zurück zum Sprechen" title="Zurück zum Sprechen"><span class="icon icon-xmark" aria-hidden="true"></span></button>
+        </nav>
+      </div>
+    </header>
+    </div></div>
+    <main>
+      <section
+        class="view home-view"
+        id="home-view"
+        aria-label="Zäme – Startseite"
+      >
+        <div class="home-center">
+          <h1 id="home-title" hidden></h1>
+          <p class="home-disclosure">Du sprichst mit einer KI.</p>
+          <button type="button" class="talk-button" id="talk-button">
+            <span class="talk-intro-label">Stell mir jemanden vor</span>
+            <span class="icon icon-arrow-right" aria-hidden="true"></span>
+          </button>
+          <div class="conversation-feedback">
+            <p class="live-transcript" id="live-transcript" hidden></p>
+            <p class="home-status" id="home-status" role="alert" hidden></p>
+          </div>
+        </div>
+      </section>
+      <section
+        class="view page-view hidden"
+        id="library-view"
+        aria-labelledby="library-title"
+      >
+        <section id="login-gate" class="login-gate" aria-labelledby="login-gate-title" hidden>
+          <h1 id="login-gate-title">Bitte zuerst anmelden</h1>
+          <p>Mit deinem Konto bleiben Freigaben und Datenanfragen eindeutig zugeordnet. Deine Freundschaftsbücher bleiben auf diesem Gerät und werden nicht zwischen Geräten synchronisiert.</p>
+          <button id="gate-login" class="button button-primary" type="button">Anmelden oder Konto erstellen</button>
+          <p class="login-gate-links"><a href="datenschutz" target="_blank" rel="noopener noreferrer">Datenschutz</a> · <a href="nutzungsbedingungen" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen</a></p>
+        </section>
+        <div id="library-private">
+        <button
+          class="back-button library-back"
+          id="library-home"
+          data-view="home"
+          type="button"
+        >
+          <span class="icon icon-arrow-left" aria-hidden="true"></span>
+          <span id="library-home-label">Zur Startseite</span>
+        </button>
+        <div class="page-head">
+          <div>
+            <h1 id="library-title">Personen</h1>
+            <p>Für die Menschen mit Demenz, die mit Zäme sprechen.</p>
+          </div>
+        </div>
+        <p class="limit-message" id="person-limit-message" hidden>
+          Hier ist Platz für drei Personen. Löschen Sie ein Profil, um ein neues
+          anzulegen.
+        </p>
+        <p class="privacy-test-note">Geschlossene Testphase: nur auf Einladung. Bitte ausschliesslich erfundene Profile und Erinnerungen verwenden. <a href="datenschutz" target="_blank" rel="noopener noreferrer">Datenschutz und Datenverarbeitung</a></p>
+        <div class="person-grid" id="person-grid"></div>
+        <div class="person-add-row">
+          <button
+            class="button button-primary add-person-button"
+            id="new-person-button"
+            type="button"
+            aria-label="Person hinzufügen"
+            title="Person hinzufügen"
+          >
+            <span class="icon icon-plus" aria-hidden="true"></span>
+            Person hinzufügen
+          </button>
+        </div>
+        <section class="voice-section" aria-labelledby="voice-title">
+          <h2 id="voice-title">Stimme</h2>
+        <fieldset class="voice-choice" aria-label="Stimme für das Gespräch">
+          <legend>In welcher Stimme soll Zäme sprechen</legend>
+          <div class="voice-choice-options">
+            <label><input type="radio" name="voice-gender" value="female" /> Weiblich</label>
+            <label><input type="radio" name="voice-gender" value="male" /> Männlich</label>
+          </div>
+        </fieldset>
+        </section>
+        </div>
+      </section>
+      <section
+        class="view page-view editor-view hidden"
+        id="editor-view"
+        aria-labelledby="editor-title"
+      >
+        <button class="back-button" id="editor-back" type="button">
+          <span class="icon icon-arrow-left" aria-hidden="true"></span> Zurück zur Übersicht
+        </button>
+        <div class="editor-heading">
+          <h1 id="editor-title">Profil</h1>
+          <button class="icon-button delete-person-button" id="delete-person-button" type="button" aria-label="Profil löschen" title="Profil löschen">
+            <span class="icon icon-trash" aria-hidden="true"></span>
+          </button>
+        </div>
+        <section id="book-privacy" class="book-privacy" aria-label="Freigabe und Daten dieses Buchs" hidden>
+          <p id="privacy-status" role="status"></p>
+          <div class="privacy-actions">
+            <button id="grant-book" type="button" class="button button-quiet">Freigeben</button>
+            <button id="revoke-book" type="button" class="button button-quiet">Freigabe widerrufen</button>
+            <button id="export-book" type="button" class="button button-quiet">Daten exportieren</button>
+            <button id="retry-privacy" type="button" class="button button-quiet">Offene Anfrage erneut senden</button>
+          </div>
+          <p class="privacy-help">Für Auskunft, Kontolöschung oder Fragen zur Vertretung: <a href="impressum" target="_blank" rel="noopener noreferrer">Kontakt zum Betreiber</a>. Ein Widerruf betrifft auch zugeordnete gemeinsame Gespräche.</p>
+        </section>
+        <div class="editor-grid">
+          <section
+            class="editor-panel profile-panel"
+            aria-labelledby="profile-heading"
+          >
+            <h2 id="profile-heading" class="book-heading">Über mich</h2>
+            <div class="field-grid">
+              <label
+                >Vorname<input
+                  id="field-name"
+                  maxlength="50"
+                  autocomplete="off"
+                  placeholder="z. B. Marta" /></label
+              ><label
+                >Alter
+                <input
+                  id="field-age"
+                  type="number"
+                  min="1"
+                  max="120"
+                  placeholder="z. B. 78" /></label
+              ><label
+                >Sprache<select id="field-language">
+                  <option value="Schweizerdeutsch">Schweizerdeutsch</option>
+                  <option value="Deutsch">Deutsch</option>
+                  <option value="English">English</option>
+                  <option value="Français">Français</option>
+                  <option value="Italiano">Italiano</option>
+                </select></label
+              ><label
+                >Ansprache<select id="field-address">
+                  <option value="du">Du</option>
+                  <option value="Sie">Sie</option>
+                </select></label
+              >
+            </div>
+            <p class="privacy-entry-note">Bitte nur hilfreiche Interessen und Erinnerungen festhalten. Keine Diagnosen, Medikamente, medizinischen Unterlagen, intimen Angaben oder Zugangsdaten.</p>
+            <label class="wide-field"
+              >Für gute Gespräche
+              <textarea
+                id="field-guidance"
+                rows="2"
+                maxlength="500"
+                placeholder="Was tut gut? Welche Themen lieber meiden?"
+              ></textarea>
+            </label>
+            <div class="compiled-card">
+              <div class="compiled-title">
+                <h3>Wer bin ich?</h3>
+                <button
+                  class="icon-button sync-button"
+                  id="compile-button"
+                  type="button"
+                  aria-label="Zusammenfassung aktualisieren"
+                  title="Zusammenfassung aktualisieren"
+                >
+                  <span class="icon icon-refresh" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="compiled-content" id="compiled-content" role="status" aria-live="polite">
+                <p class="compiled-empty">Was ich mag, was mir wichtig ist und was mich ausmacht – hier finden eure Erinnerungen zusammen.</p>
+              </div>
+            </div>
+          </section>
+          <section
+            class="editor-panel notes-panel"
+            aria-labelledby="notes-heading"
+          >
+            <div class="panel-top">
+              <h2 id="notes-heading">Gemeinsame Erinnerungen</h2>
+            </div>
+            <form id="note-form" class="note-composer">
+              <div id="compose-idle">
+                <label for="note-text" class="visually-hidden"
+                  >Erinnerung notieren</label
+                >
+                <textarea
+                  id="note-text"
+                  rows="3"
+                  maxlength="500"
+                  placeholder="Was verbindet euch? Eine Erinnerung festhalten …"
+                ></textarea>
+                <div class="composer-actions">
+                  <button
+                    type="button"
+                    class="icon-button mic-button"
+                    id="record-note-button"
+                    aria-label="Sprachnotiz aufnehmen"
+                    title="Sprachnotiz aufnehmen"
+                  >
+                    <span
+                      class="icon icon-microphone"
+                      aria-hidden="true"
+                    ></span>
+                  </button>
+                  <button
+                    class="icon-button composer-save"
+                    id="save-note-button"
+                    type="submit"
+                    aria-label="Erinnerung speichern"
+                    title="Erinnerung speichern"
+                  >
+                    <span class="icon icon-check" aria-hidden="true"></span>
+                  </button>
+                </div>
+              </div>
+              <div class="recording-panel" id="recording-panel" hidden>
+                <button
+                  type="button"
+                  class="icon-button recording-discard"
+                  id="discard-recording"
+                  aria-label="Aufnahme verwerfen"
+                  title="Aufnahme verwerfen"
+                >
+                  <span class="icon icon-xmark" aria-hidden="true"></span>
+                </button>
+                <div
+                  class="waveform"
+                  id="recording-waveform"
+                  aria-label="Aufnahme läuft"
+                ></div>
+                <button
+                  type="button"
+                  class="icon-button recording-confirm"
+                  id="confirm-recording"
+                  aria-label="Aufnahme notieren"
+                  title="Aufnahme notieren"
+                >
+                  <span class="icon icon-check" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="transcribing-panel" id="transcribing-panel" hidden>
+                <span
+                  class="icon icon-refresh loading-icon"
+                  aria-hidden="true"
+                ></span>
+                Notieren …
+              </div>
+            </form>
+            <p class="form-hint" id="note-form-hint" role="status" hidden></p>
+            <div id="notes-list" class="notes-list"></div>
+          </section>
+        </div>
+      </section>
+      <section
+        class="view page-view donate-view hidden"
+        id="donate-view"
+        aria-labelledby="donate-title"
+      >
+        <div class="donation-intro">
+          <h1 id="donate-title">Mehr Nähe im Alltag<span class="period">.</span></h1>
+          <p>Zäme ist ein offenes Projekt für Menschen mit Demenz. Wir möchten vertraute Gesprächsmomente ermöglichen – einfach auf Knopfdruck und kostenlos. Erinnerungen und Vorlieben, die Angehörige einbringen, helfen Zäme, an das anzuknüpfen, was persönlich zählt.</p>
+        </div>
+        <div class="donation-support">
+          <div class="donation-appeal">
+            <h2>Ein Gespräch schenken.</h2>
+            <p>Deine Spende fliesst direkt in die KI-Infrastruktur: Sprachverarbeitung, KI-Modell und Hosting. So helfen wir gemeinsam, Zäme kostenlos zugänglich zu halten.</p>
+            <button class="button button-primary" id="donate-button" type="button" disabled aria-describedby="donation-payment-note">Mit TWINT spenden <span class="icon icon-arrow-up-right" aria-hidden="true"></span></button>
+            <p class="donation-caption" id="donation-payment-note">Der Spendenweg wird noch eingerichtet.</p>
+          </div>
+          <figure class="donation-budget" aria-labelledby="donation-budget-title">
+            <figcaption id="donation-budget-title">Unser offenes Budget</figcaption>
+            <dl class="donation-totals">
+              <div class="donation-total donation-total-in"><dt>Gespendet</dt><dd id="donation-income">CHF —</dd></div>
+              <div class="donation-total donation-total-out"><dt>Für den Betrieb ausgegeben</dt><dd id="donation-expenses">CHF —</dd></div>
+            </dl>
+            <div class="donation-comparison" id="donation-comparison" hidden aria-hidden="true"><div><i id="donation-income-bar"></i></div><div><i id="donation-expenses-bar"></i></div></div>
+            <dl class="donation-costs" aria-label="Betriebskosten nach Bereich">
+              <div><dt><i class="cost-hosting" aria-hidden="true"></i>Hosting</dt><dd id="donation-hosting">CHF —</dd></div>
+              <div><dt><i class="cost-ai" aria-hidden="true"></i>KI</dt><dd id="donation-ai">CHF —</dd></div>
+              <div><dt><i class="cost-speech" aria-hidden="true"></i>Sprache</dt><dd id="donation-speech">CHF —</dd></div>
+            </dl>
+            <p class="donation-caption" id="donation-budget-note">Hier erscheinen bestätigte Spenden und tatsächliche Kosten. Noch liegen keine verifizierten Zahlen vor.</p>
+          </figure>
+        </div>
+        <section class="donation-technical" aria-labelledby="donation-technical-title">
+          <h2 id="donation-technical-title">Technischer Hintergrund</h2>
+          <p>Zäme wird als Open-Source-Projekt entwickelt: offen zum Nachvollziehen, Mitgestalten und Weiterverwenden.</p>
+          <p>KI: <a href="https://www.infomaniak.com/de/hosting/ai-tools" target="_blank" rel="noopener noreferrer">Infomaniak</a> · Stimme: <a href="https://elevenlabs.io/" target="_blank" rel="noopener noreferrer">ElevenLabs</a></p>
+          <p>Bitte in der Vorschau nur erfundene Testdaten verwenden.</p>
+          <a id="donation-github" class="donation-source-link" hidden target="_blank" rel="noopener noreferrer">Quellcode auf GitHub <span class="icon icon-arrow-up-right" aria-hidden="true"></span></a>
+          <p class="donation-caption" id="donation-source-note">Der öffentliche GitHub-Link folgt mit der Veröffentlichung.</p>
+        </section>
+      </section>
+    </main>
+    <footer class="site-footer">
+      <div>
+        <span class="footer-brand" aria-label="Zäme"
+          ><span class="wordmark" aria-hidden="true"
+            ><span>Z</span><span>ä</span><span>m</span><span>e</span></span
+          ></span
+        ><span>Ein offenes Projekt für mehr Nähe im Alltag.</span>
+      </div>
+      <span
+        >Kein Ersatz für Betreuung, medizinischen Rat oder Hilfe im
+        Notfall.</span
+      >
+      <nav class="footer-legal" aria-label="Rechtliches für Zäme"><a href="impressum" target="_blank" rel="noopener noreferrer">Impressum</a><a href="datenschutz" target="_blank" rel="noopener noreferrer">Datenschutz</a><a href="nutzungsbedingungen" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen</a></nav>
+    </footer>
+    <aside id="family-tour" class="family-tour" aria-labelledby="tour-title" hidden>
+      <button id="tour-skip" class="icon-button tour-skip" type="button" aria-label="Einführung überspringen" title="Einführung überspringen"><span class="icon icon-xmark" aria-hidden="true"></span></button>
+      <div class="tour-copy" aria-live="polite"><h2 id="tour-title"></h2><p id="tour-text"></p></div>
+      <div class="tour-footer"><span id="tour-progress" aria-label="Schritt"></span><button id="tour-next" class="icon-button tour-next" type="button" aria-label="Weiter"><span class="icon icon-arrow-right" aria-hidden="true"></span></button></div>
+    </aside>
+    <dialog id="app-dialog" class="app-dialog">
+      <form method="dialog">
+        <button class="dialog-close" aria-label="Schliessen" value="close">
+          <span class="icon icon-xmark" aria-hidden="true"></span>
+        </button>
+        <h2 id="dialog-title"></h2>
+        <p id="dialog-message"></p>
+        <div class="dialog-actions" id="dialog-actions">
+          <button class="button button-primary" value="close">
+            Verstanden
+          </button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="consent-dialog" class="app-dialog privacy-dialog" aria-labelledby="consent-title" aria-describedby="consent-information">
+      <form id="consent-form">
+        <h2 id="consent-title">Vor dem ersten Eintrag</h2>
+        <div id="consent-information">
+          <p>Zäme ist ein experimentelles KI-Gesprächsangebot für Erwachsene. Es ersetzt keine Betreuung, medizinische Beratung oder Hilfe im Notfall. Gespräche werden nicht von einer Betreuungsperson überwacht.</p>
+          <p>Dieses Buch wird unverschlüsselt im Browser gespeichert. Für Gespräche und Zusammenfassungen werden ausgewählte Buchinhalte und Sprache durch ElevenLabs und Infomaniak verarbeitet, teilweise im Ausland. Andere Personen im selben Browser können lokale Bücher möglicherweise lesen.</p>
+          <p>Bitte keine Diagnosen, Medikamente, intimen Angaben oder Zugangsdaten erfassen. Auch unbeabsichtigte sensible Gesprächsinhalte können technisch verarbeitet werden. Eine Mikrofonfreigabe allein ist keine Zustimmung für andere Anwesende.</p>
+          <p>Die Freigabe kann jederzeit für die Zukunft widerrufen werden. Einzelheiten zu Anbietern, Ländern, Aufbewahrung und Löschung stehen in der <a href="datenschutz" target="_blank" rel="noopener noreferrer">Datenschutzerklärung</a>.</p>
+        </div>
+        <p id="consent-real-note">Aktuell sind nur erfundene Profile freigegeben. Echte Profile benötigen zusätzlich die Betriebsfreigabe durch den Betreiber.</p>
+        <label class="consent-field">Für wen wird dieses Buch erstellt?
+          <select id="consent-role" required>
+            <option value="fictional">Erfundene Person zum Testen</option>
+            <option value="self">Die erwachsene Person stimmt selbst zu</option>
+            <option value="representative">Ich handle als befugte Vertretung</option>
+          </select>
+        </label>
+        <label id="consent-authority-field" class="consent-field" hidden>Grundlage der Vertretung
+          <select id="consent-authority"><option value="">Bitte auswählen</option><option value="mandate">Wirksamer Auftrag / Vollmacht für diese Entscheidung</option><option value="deputy">Beistandschaft mit passendem Aufgabenbereich</option><option value="other">Andere geklärte gesetzliche Befugnis</option></select>
+          <span>Angehörigenstatus allein genügt nicht. Bei Unsicherheit zuerst den Betreiber kontaktieren. Keine Ausweiskopien oder Gesundheitsunterlagen hier hochladen.</span>
+        </label>
+        <label class="consent-check"><input id="consent-accepted" type="checkbox" required><span>Ich bestätige: Die Person hat diese Information verstanden und freiwillig ausdrücklich zugestimmt, oder ich bin für diese Entscheidung tatsächlich vertretungsbefugt und stimme zu. Bei einem erfundenen Profil bestätige ich, dass keine echten Personen beschrieben werden. Ablehnung oder ein Wunsch nach Stopp werden respektiert.</span></label>
+        <label class="consent-check"><input id="consent-terms" type="checkbox" required><span>Ich akzeptiere die <a href="nutzungsbedingungen" target="_blank" rel="noopener noreferrer">Nutzungsbedingungen</a> für Zäme.</span></label>
+        <p id="consent-error" role="alert"></p>
+        <div class="dialog-actions"><button id="consent-cancel" class="button button-quiet" type="button">Abbrechen</button><button id="consent-submit" class="button button-primary" type="submit">Freigeben</button></div>
+      </form>
+    </dialog>
+    <dialog id="voice-notice" class="app-dialog privacy-dialog" aria-labelledby="voice-notice-title">
+      <form id="voice-notice-form">
+        <h2 id="voice-notice-title" tabindex="-1" autofocus>Bevor wir sprechen</h2>
+        <p>Im Gespräch: <strong id="voice-notice-people"></strong></p>
+        <p>Zäme ist eine KI, kein Mensch. ElevenLabs und Infomaniak verarbeiten eure Sprache und die ausgewählten Buchinhalte, teilweise im Ausland.</p>
+        <p>Bitte keine Diagnosen, Medikamente oder Geheimnisse erzählen. Zäme kann sich irren. Du kannst jederzeit mit dem grossen Knopf aufhören. Es hört keine Betreuungsperson mit.</p>
+        <p id="voice-notice-test">Diese Testversion ist nur für erfundene Angaben gedacht – auch im Gespräch.</p>
+        <label class="consent-check"><input id="voice-notice-confirmed" type="checkbox" required><span>Alle Anwesenden wurden verständlich informiert und stimmen freiwillig zu. Falls eine Vertretung nötig ist, ist sie für diese Entscheidung befugt. Niemand wird gegen seinen erkennbaren Willen aufgenommen.</span></label>
+        <p><a href="datenschutz" target="_blank" rel="noopener noreferrer">Mehr über eure Daten</a></p>
+        <div class="dialog-actions"><button id="voice-notice-cancel" type="button" class="button button-quiet">Jetzt nicht</button><button id="voice-notice-start" type="submit" class="button button-primary" disabled>Gespräch starten</button></div>
+      </form>
+    </dialog>
+    <dialog id="summary-review" class="app-dialog privacy-dialog" aria-labelledby="summary-title">
+      <form id="summary-form">
+        <h2 id="summary-title">Zusammenfassung prüfen</h2>
+        <p>Dies ist ein KI-Vorschlag. Bitte Fehler, Diagnosen und andere sensible Angaben entfernen. Erst nach deiner Bestätigung wird der Text ins Buch übernommen.</p>
+        <label class="consent-field">Vorschlag<textarea id="summary-text" rows="7" maxlength="600"></textarea></label>
+        <div class="dialog-actions"><button id="summary-cancel" type="button" class="button button-quiet">Verwerfen</button><button type="submit" class="button button-primary">Ins Buch übernehmen</button></div>
+      </form>
+    </dialog>
+  </body>
+</html>

@@ -1,0 +1,46 @@
+.env*
+!.env.example
+secrets/
+.secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+*.log
+.DS_Store
+*.gguf
+*.safetensors
+recordings/
+exports/
+.venv/
+__pycache__/
+*.pyc
+node_modules/
+dist/
+# Private runtime state and generated test artifacts.
+/agents-config.json
+/agents-budget.json
+*.sqlite*
+*.db
+*.db-*
+*.age
+*.dump
+/backups/
+/auth.json
+/recovery.json
+/runtime.env
+/info.txt
+.pytest_cache/
+.coverage
+htmlcov/
+playwright-report/
+test-results/
+
+# Local visual review captures.
+/.impeccable/review/
+
+# Private review reports and ad-hoc credential/recovery files.
+/gitleaks*.json
+/*secret*.txt
+/*password*.txt
+/*.har

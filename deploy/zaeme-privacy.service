@@ -1,0 +1,20 @@
+[Unit]
+Description=Zäme provider deletion retries and privacy retention
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=zaeme
+Group=zaeme
+WorkingDirectory=/opt/zaeme/current
+EnvironmentFile=/etc/zaeme/runtime.env
+ExecStart=/opt/zaeme/venv/bin/python privacy_admin.py --drain
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/zaeme
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+MemoryMax=128M

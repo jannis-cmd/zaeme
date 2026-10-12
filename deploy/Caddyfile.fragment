@@ -1,0 +1,7 @@
+# Add inside your own HTTPS site block. This fragment defines no other routes.
+# This loopback upstream assumes Caddy and Gunicorn share the host network.
+# For containers, configure a private network explicitly; do not expose Gunicorn.
+redir /zaeme /zaeme/ 308
+handle /zaeme/* {
+    reverse_proxy 127.0.0.1:4186
+}
